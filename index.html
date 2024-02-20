@@ -10,31 +10,51 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 1));
+      color: #fff;
+      height: 100%;
     }
 
     header {
-      background-color: #333;
       color: #fff;
       padding: 10px 20px;
+      border-bottom: 1px solid #ccc;
     }
 
     section {
       padding: 20px;
     }
 
+    h2 {
+      margin-bottom: 0px;
+    }
+
     .block {
       width: 200px;
-      height: 150px;
-      border: 1px solid #ccc;
-      margin: 10px;
+      height: 200px;
+      border: None;
+      margin: 30px;
       display: inline-block;
       cursor: pointer;
       overflow: hidden;
+      position: relative;
     }
-
-    .block img {
+    .block video {
       width: 100%;
-      height: auto;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .block-title {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      /* transform: translateX(50%, -50%); */
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 3px 5px;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -49,19 +69,31 @@
     <h2>Practical Work #1</h2>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex1+2.html'">
-      <img src="path/to/source" alt="Task 1 + 2">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_1+2.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 1&2</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex3.html'">
-      <img src="path/to/source" alt="Task 3">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_3.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 3</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex4.html'">
-      <img src="path/to/source" alt="Task 4">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_4.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 4</div>
     </div>
 
-    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex4.html'">
-      <img src="path/to/source" alt="Task 5">
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex5.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_5.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 5</div>
     </div>
 
   </section>
@@ -69,33 +101,53 @@
     <h2>Practical Work #2</h2>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex1.html'">
-      <img src="path/to/source" alt="Task 1">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_1.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 1</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex2.html'">
-      <img src="path/to/source" alt="Task 2">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_2.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 2</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex3.html'">
-      <img src="path/to/source" alt="Task 3">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_3.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 3</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex4.html'">
-      <img src="path/to/source" alt="Task 4">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_4.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 4</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex5.html'">
-      <img src="path/to/source" alt="Task 5">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_5.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 5</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex6.html'">
-      <img src="path/to/source" alt="Task 6">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_6.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 6</div>
     </div>
 
     <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex7.html'">
-      <img src="path/to/source" alt="Task 7">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_7.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Task 7</div>
     </div>
-
   </section>
 
   <script>
