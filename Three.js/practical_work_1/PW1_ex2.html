@@ -146,38 +146,9 @@
     // const axesHelper = new THREE.AxesHelper(100);
     // scene.add(axesHelper);
 
-    const numMarksX = Math.floor(window.innerWidth / 20);
-    const numMarksY = Math.floor(window.innerHeight / 20);
-
-    // for (let i = -numMarksX; i < numMarksX; i++) {
-    //   for (let j = -numMarksY; j < numMarksY; j++) {
-    //     createMarks(i * 5, -50 , j * 5);
-    //   }
-    // }
-
     for (let i = 0; i < 3; ++i) {
       createAllPrimitives(i * 30);
     }
-
-    // function createMarks(x, y, z) {
-    //   const material = new THREE.LineBasicMaterial({
-    //     color: 0xffffff,
-    //     transparent: true,
-    //   });
-    //   const points = [];
-    //   points.push(new THREE.Vector3(-1, 0, 0));
-    //   points.push(new THREE.Vector3(1, 0, 0));
-    //   points.push(new THREE.Vector3(0, 0, -1));
-    //   points.push(new THREE.Vector3(0, 0, 1));
-    //   const geometry =
-    //     new THREE.BufferGeometry().setFromPoints(points);
-    //   const line = new THREE.LineSegments(
-    //     geometry,
-    //     material
-    //   );
-    //   line.position.set(x, y, z);
-    //   scene.add(line);
-    // }
 
     function addPrimitives(geometry, x, y, z) {
       const material = new THREE.MeshNormalMaterial({
