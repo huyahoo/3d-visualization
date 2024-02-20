@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time 3D Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #333;
+      color: #fff;
+      padding: 10px 20px;
+    }
+
+    section {
+      padding: 20px;
+    }
+
+    .block {
+      width: 200px;
+      height: 150px;
+      border: 1px solid #ccc;
+      margin: 10px;
+      display: inline-block;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .block img {
+      width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <header style="text-align: center">
+    <h1>Real-time 3D Visualization</h1>
+    <p>Author: Phung Quang Huy</p>
+    <p>Last Modified: <span id="lastModified"></span></p>
+  </header>
+  <section id="practicalWork1">
+    <h2>Practical Work #1</h2>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex1+2.html'">
+      <img src="path/to/source" alt="Task 1 + 2">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex3.html'">
+      <img src="path/to/source" alt="Task 3">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex4.html'">
+      <img src="path/to/source" alt="Task 4">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex4.html'">
+      <img src="path/to/source" alt="Task 5">
+    </div>
+
+  </section>
+  <section id="practicalWork2">
+    <h2>Practical Work #2</h2>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex1.html'">
+      <img src="path/to/source" alt="Task 1">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex2.html'">
+      <img src="path/to/source" alt="Task 2">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex3.html'">
+      <img src="path/to/source" alt="Task 3">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex4.html'">
+      <img src="path/to/source" alt="Task 4">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex5.html'">
+      <img src="path/to/source" alt="Task 5">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex6.html'">
+      <img src="path/to/source" alt="Task 6">
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex7.html'">
+      <img src="path/to/source" alt="Task 7">
+    </div>
+
+  </section>
+
+  <script>
+    document.getElementById('lastModified').textContent = document.lastModified;
+  </script>
+</body>
+
+</html>
