@@ -23,6 +23,8 @@
 </head>
 
 <body>
+  <canvas id="c"></canvas>
+
   <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
   <script type="importmap">
       {
@@ -38,36 +40,35 @@
     import { OrbitControls } from "three/addons/controls/OrbitControls.js";
     import { GUI } from 'https://cdn.jsdelivr.net/npm/lil-gui@0.19/+esm';
     import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
-    import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import {VRButton} from 'three/addons/webxr/VRButton.js';
 
     var scene = new THREE.Scene();
     const gui = new GUI();
 
-    var aspect = window.innerWidth / window.innerHeight;
+    const canvas = document.querySelector('#c');
+
+    const renderer = new THREE.WebGLRenderer(
+      { antialias: true, canvas }
+    );
+
+    renderer.shadowMap.enabled = true;
+
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.xr.enabled = true;
+    document.body.appendChild(VRButton.createButton(renderer));
+    document.body.appendChild(renderer.domElement);
+
     var camera = new THREE.PerspectiveCamera(
       75,
-      aspect,
+      window.innerWidth / window.innerHeight,
       0.1,
       1000
     );
+
+    camera.updateProjectionMatrix();
     camera.position.set(0, 0, 15);
-    // camera.position.set(0, 1.6, 0);
-
-    var renderer = new THREE.WebGLRenderer({
-      antialias: true,
-    });
-
-    renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
-    );
-
-    renderer.xr.enabled = true;
-
-    renderer.setPixelRatio(window.devicePixelRatio);
-
-    document.body.appendChild(renderer.domElement);
-    document.body.appendChild(VRButton.createButton(renderer));
 
     const controls = new OrbitControls(
       camera,
@@ -111,8 +112,8 @@
         mesh.material.color.set(this.wallsObj[propertyName]);
         if (propertyName === 'leftSide') {
           rectLightLeft.color.set(parseInt(this.wallsObj[propertyName], 16));
-        }
-        if (propertyName === 'rightSide') {
+        } 
+        else if (propertyName === 'rightSide') {
           rectLightRight.color.set(parseInt(this.wallsObj[propertyName], 16));
         }
       }
@@ -138,12 +139,70 @@
       }
     }
 
+    class ShadowCameraControls {
+      constructor(lightsFolder, lights) {
+        this.lightsFolder = lightsFolder;
+        this.lights = lights;
+
+        this.shadowParams = {
+          castShadow: false,
+          width: 512,
+          height: 512,
+          near: 0.5,
+          far: 500
+        };
+
+        this.createShadowGUI();
+      }
+
+      createShadowGUI() {
+        const folder = this.lightsFolder.addFolder('Shadow Camera');
+        folder.close();
+
+        folder.add(this.shadowParams, 'castShadow').onChange(value => {
+          this.lights.forEach(light => {
+            light.castShadow = value;
+          });
+        });
+
+        folder.add(this.shadowParams, 'width', 256, 1024).onChange(value => {
+          this.lights.forEach(light => {
+            light.shadow.mapSize.width = value;
+            light.shadow.mapSize.height = value;
+          });
+        });
+
+        folder.add(this.shadowParams, 'height', 256, 1024).onChange(value => {
+          this.lights.forEach(light => {
+            light.shadow.mapSize.width = value;
+            light.shadow.mapSize.height = value;
+          });
+        });
+
+        folder.add(this.shadowParams, 'near', 0.1, 50).onChange(value => {
+          this.lights.forEach(light => {
+            light.shadow.camera.near = value;
+            light.shadow.camera.updateProjectionMatrix();
+          });
+        });
+
+        folder.add(this.shadowParams, 'far', 0.1, 1000).onChange(value => {
+          this.lights.forEach(light => {
+            light.shadow.camera.far = value;
+            light.shadow.camera.updateProjectionMatrix();
+          });
+        });
+      }
+    }
+
     // GUI Lights Controller
     class LightControls {
       constructor(scene, gui, lights) {
         this.scene = scene;
         this.gui = gui;
         this.lights = lights;
+        this.secondary = [lights[4], lights[5]];
+        this.rectAreaLightLeft = lights[5];
         this.enableControls = {};
         this.helperControls = {};
         this.createGUI();
@@ -154,30 +213,67 @@
       }
 
       createGUI() {
-        let folder = this.gui.addFolder('Lights');
+        const folder = this.gui.addFolder('Lights');
         folder.close();
+        const shadowCameraControls = new ShadowCameraControls(folder, [lights[0], lights[1], lights[2]]);
 
         this.lights.forEach(light => {
-          if (light instanceof THREE.DirectionalLight) {
-            scene.add(light);
-            light.visible = false;
-            this.addDirectionalLightControls(light, folder);
-          } else if (light instanceof THREE.PointLight) {
+          if (light instanceof THREE.PointLight) {
             this.addPointLightControls(light, folder);
+            light.visible = false;
+          } else if (light instanceof THREE.DirectionalLight) {
+            this.addDirectionalLightControls(light, folder);
+            light.visible = false;
           } else if (light instanceof THREE.SpotLight) {
-            scene.add(light);
-            light.visible = false;
             this.addSpotLightControls(light, folder);
-          } else if (light instanceof THREE.HemisphereLight) {
-            scene.add(light);
             light.visible = false;
+          } else if (light instanceof THREE.HemisphereLight) {
             this.addHemisphereLightControls(light, folder);
+            light.visible = false;
+          } else if (light instanceof THREE.RectAreaLight) {
+            light.visible = false;
           }
+          scene.add(light);
         });
+
+        this.addSecondaryLightControls(this.secondary, folder);
+      }
+
+      addPointLightControls(light, folder) {
+        const lightFolder = folder.addFolder('Point Light');
+        lightFolder.close();
+        this.enableControls.pointLight = false;
+        this.helperControls.pointLight = false;
+
+        const toggleHelper = (value, isShowHelper) => {
+          if (value && isShowHelper) {
+            scene.add(lightHelper);
+          } else {
+            scene.remove(lightHelper);
+          }
+        };
+
+        lightFolder.add(this.enableControls, 'pointLight').name('Enable').onChange(value => {
+          light.visible = value;
+          toggleHelper(value, this.helperControls.pointLight)
+        });
+        lightFolder.add(this.helperControls, 'pointLight').name('Helper').onChange(value => {
+          toggleHelper(value, value);
+          this.helperControls.pointLight = value;
+        });
+
+        lightFolder.addColor(light, 'color').onChange(() => light.color = new THREE.Color(light.color));
+        lightFolder.add(light, 'intensity', 0, 150, 1);
+        lightFolder.add(light, 'distance', 0, 24, 0.1)
+        lightFolder.add(light, 'decay', 0, 4, 0.1);
+        lightFolder.add(light.position, 'x', -6, 6);
+        lightFolder.add(light.position, 'y', -5, 5);
+        lightFolder.add(light.position, 'z', 0, 8);
       }
 
       addDirectionalLightControls(light, folder) {
         const lightFolder = folder.addFolder('Directional Light');
+        lightFolder.close();
         const helper = new THREE.DirectionalLightHelper(light);
         this.enableControls.directionalLight = false;
         this.helperControls.directionalLight = false;
@@ -200,44 +296,14 @@
         });
         lightFolder.addColor(light, 'color').onChange(() => light.color = new THREE.Color(light.color));
         lightFolder.add(light, 'intensity', 0, 2, 0.01);
-        lightFolder.add(light.position, 'x', -10, 10);
-        lightFolder.add(light.position, 'y', -10, 10);
-        lightFolder.add(light.position, 'z', -10, 10);
-      }
-
-      addPointLightControls(light, folder) {
-        const lightFolder = folder.addFolder('Point Light');
-        this.enableControls.pointLight = true;
-        this.helperControls.pointLight = true;
-
-        const toggleHelper = (value, isShowHelper) => {
-          if (value && isShowHelper) {
-            scene.add(lightHelper);
-          } else {
-            scene.remove(lightHelper);
-          }
-        };
-
-        lightFolder.add(this.enableControls, 'pointLight').name('Enable').onChange(value => {
-          light.visible = value;
-          toggleHelper(value, this.helperControls.pointLight)
-        });
-        lightFolder.add(this.helperControls, 'pointLight').name('Helper').onChange(value => {
-          toggleHelper(value, value);
-          this.helperControls.pointLight = value;
-        });
-
-        lightFolder.addColor(light, 'color').onChange(() => light.color = new THREE.Color(light.color));
-        lightFolder.add(light, 'intensity', 0, 150, 1);
         lightFolder.add(light.position, 'x', -6, 6);
         lightFolder.add(light.position, 'y', -5, 5);
         lightFolder.add(light.position, 'z', 0, 8);
-        lightFolder.add(light, 'distance', 0, 24, 0.1)
-        lightFolder.add(light, 'decay', 0, 4, 0.1);
       }
 
       addSpotLightControls(light, folder) {
         const lightFolder = folder.addFolder('Spot Light');
+        lightFolder.close();
         const helper = new THREE.SpotLightHelper(light);
         this.enableControls.spotLight = false;
         this.helperControls.spotLight = false;
@@ -266,15 +332,16 @@
 
         lightFolder.addColor(light, 'color').onChange(() => light.color = new THREE.Color(light.color));
         lightFolder.add(light, 'intensity', 0, 150, 1);
-        lightFolder.add(light.position, 'x', -10, 10);
-        lightFolder.add(light.position, 'y', -10, 10);
-        lightFolder.add(light.position, 'z', -10, 10);
         lightFolder.add(light, 'distance', 0, 24, 0.1)
         lightFolder.add(light, 'decay', 0, 4, 0.1);
+        lightFolder.add(light.position, 'x', -6, 6);
+        lightFolder.add(light.position, 'y', -5, 5);
+        lightFolder.add(light.position, 'z', 0, 8);
       }
 
       addHemisphereLightControls(light, folder) {
         const lightFolder = folder.addFolder('Hemisphere Light');
+        lightFolder.close();
         this.enableControls.hemisphereLight = false;
         lightFolder.add(this.enableControls, 'hemisphereLight').name('Enable').onChange(value => {
           light.visible = value;
@@ -287,30 +354,47 @@
         lightFolder.addColor(light, 'skyColor').onChange(() => light.color = new THREE.Color(light.color));
         lightFolder.addColor(light, 'groundColor').onChange(() => light.groundColor = new THREE.Color(light.groundColor));
         lightFolder.add(light, 'intensity', 0, 150, 1);
-        lightFolder.add(light.position, 'x', -10, 10);
-        lightFolder.add(light.position, 'y', -10, 10);
-        lightFolder.add(light.position, 'z', -10, 10);
+        lightFolder.add(light.position, 'x', -6, 6);
+        lightFolder.add(light.position, 'y', -5, 5);
+        lightFolder.add(light.position, 'z', 0, 8);
+      }
+
+      addSecondaryLightControls(light, folder) {
+        const secondaryFolder = folder.addFolder('Secondary Light');
+        secondaryFolder.close();
+        const left = secondaryFolder.addFolder('Left');
+
+        this.enableControls.secondaryLeft = true;
+        left.add(this.enableControls, 'hemisphereLight').name('Enable').onChange(value => {
+          light[0].visible = value;
+          this.enableControls.secondaryLeft = value;
+        });
+        left.add(light[0], 'intensity', 0, 150, 1);
+
+        const right = secondaryFolder.addFolder('Right');
+        this.enableControls.secondaryRight = true;
+        right.add(this.enableControls, 'hemisphereLight').name('Enable').onChange(value => {
+          light[1].visible = value;
+          this.enableControls.secondaryLeft = value;
+        });
+        right.add(light[1], 'intensity', 0, 150, 1);
       }
     }
     // Ambient Light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
+
+    // Point Light
+    const pointLight = new THREE.PointLight(0xffffff, 20, 20, 2);
+    pointLight.position.set(0, 0, 4);
+
+    const lightHelper = new THREE.PointLightHelper(pointLight, 1);
+    // scene.add(lightHelper);
 
     // Directional Light
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(0, 4, 4);
     directionalLight.target.position.set(0, 0, 4);
-
-    // Point Light
-    const pointLight = new THREE.PointLight(0xffffff, 1, 100);
-    pointLight.position.set(0, 0, 4);
-    pointLight.intensity = 20;
-    pointLight.distance = 16;
-    pointLight.decay = 2;
-    scene.add(pointLight);
-
-    const lightHelper = new THREE.PointLightHelper(pointLight, 1);
-    scene.add(lightHelper);
 
     // Spot Light
     const spotLight = new THREE.SpotLight(0xffffff, 1);
@@ -326,11 +410,33 @@
     hemisphereLight.skyColor = new THREE.Color(0xffffbb);
     hemisphereLight.groundColor = new THREE.Color(0x080820);
 
-    const lights = [directionalLight, pointLight, spotLight, hemisphereLight];
+    const rectLightLeft = new THREE.RectAreaLight(0xff0000, 3, 8, 10);
+    rectLightLeft.position.set(-5.99, 0, 4);
+    rectLightLeft.lookAt(0, 0, 4);
+
+    const rectLightRight = new THREE.RectAreaLight(0x00ff00, 3, 8, 10);
+    rectLightRight.position.set(5.99, 0, 4);
+    rectLightRight.lookAt(0, 0, 4);
+
+    // const rectLightHelper = new RectAreaLightHelper(rectLightRight);
+    // rectLightRight.add(rectLightHelper);
+
+    // const rectLightLeftHelper = new RectAreaLightHelper(rectLightLeft);
+    // rectLightLeft.add(rectLightLeftHelper);
+
+    scene.add(rectLightLeft, rectLightRight);
+
+    const lights = [directionalLight, pointLight, spotLight, hemisphereLight, rectLightLeft, rectLightRight];
     const lightControls = new LightControls(scene, gui, lights);
 
     // Common Material GUI Controller
     const materialFolder = gui.addFolder('Material');
+    materialFolder.close()
+    const textureLoader = new THREE.TextureLoader();
+    let textureEquirec;
+    textureEquirec = textureLoader.load('2294472375_24a3b8ef46_o.jpg');
+    textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
+    textureEquirec.colorSpace = THREE.SRGBColorSpace;
     const cornTexture = new THREE.TextureLoader().load('corn.jpeg');
     const reflectionMapTexture = new THREE.TextureLoader().load('hologram.jpeg');
     const refractionMapTexture = new THREE.TextureLoader().load('night-city.webp');
@@ -408,7 +514,9 @@
 
         this.lambertMaterialParams = {
           color: 0x3ff7c3,
-          emissive: 0x000000,
+          emissive: 0xffffff,
+          emissiveMap: 'none',
+          emissiveIntensity: 1,
           vertexColors: false,
           envMaps: 'none',
           map: 'none',
@@ -439,19 +547,42 @@
           });
         });
 
+        folder.add(this.lambertMaterialParams, 'emissiveMap', ['none', 'house']).onChange(value => {
+          const map = value === 'none' ? null : value === 'house' ? textureEquirec : null;
+          this.meshes.forEach(mesh => {
+            mesh.material.emissiveMap = map;
+            mesh.material.needsUpdate = true;
+          });
+        });
+
+        folder.add(this.lambertMaterialParams, 'emissiveIntensity', 0, 10).onChange(value => {
+          this.meshes.forEach(mesh => {
+            mesh.material.emissiveIntensity = value;
+            mesh.material.needsUpdate = true;
+          });
+        });
+
         folder.add(this.lambertMaterialParams, 'vertexColors').onChange(value => {
           this.meshes.forEach(mesh => {
             mesh.material.vertexColors = value;
+            mesh.material.emissive.set(0xffffff);
             mesh.material.needsUpdate = true;
           });
         });
 
         folder.add(this.lambertMaterialParams, 'envMaps', ['none', 'reflection', 'refraction']).onChange(value => {
-          const envMaps = value === 'none' ? null : value === 'reflection' ? reflectionMapTexture : refractionMapTexture;
-
-          console.log(envMaps)
+          if (value === 'refraction') {
+            textureEquirec.mapping = THREE.EquirectangularRefractionMapping;
+          } else if (value === 'reflection') {
+            textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
+          } else {
+          }
           this.meshes.forEach(mesh => {
-            mesh.material.envMap = envMaps;
+            if (value === 'none') {
+              mesh.material.envMap = null;
+            } else {
+              mesh.material.envMap = textureEquirec;
+            }
             mesh.material.needsUpdate = true;
           });
         });
@@ -461,6 +592,7 @@
           this.meshes.forEach(mesh => {
             mesh.material.map = map;
             mesh.material.color.set(0xf4eceb);
+            mesh.material.emissive.set(0x000000);
             mesh.material.needsUpdate = true;
           });
         });
@@ -504,7 +636,9 @@
 
         this.phongMaterialParams = {
           color: 0xf02e21,
-          emissive: 0x000000,
+          emissive: 0xa55f5f,
+          emissiveMap: 'none',
+          emissiveIntensity: 10,
           specular: 0x111111,
           shininess: 30,
           envMaps: 'none',
@@ -536,6 +670,22 @@
           });
         });
 
+        folder.add(this.phongMaterialParams, 'emissiveMap', ['none', 'house']).onChange(value => {
+          const map = value === 'none' ? null : value === 'house' ? textureEquirec : null;
+          this.meshes.forEach(mesh => {
+            mesh.material.emissiveMap = map;
+            mesh.material.needsUpdate = true;
+          });
+        });
+
+        folder.add(this.phongMaterialParams, 'emissiveIntensity', 0, 50).onChange(value => {
+          this.meshes.forEach(mesh => {
+            mesh.material.emissiveIntensity = value;
+            mesh.material.emissive.set(0xa55f5f),
+            mesh.material.needsUpdate = true;
+          });
+        });
+
         folder.addColor(this.phongMaterialParams, 'specular').onChange(value => {
           this.meshes.forEach(mesh => {
             mesh.material.specular.set(value);
@@ -551,9 +701,18 @@
         });
 
         folder.add(this.phongMaterialParams, 'envMaps', ['none', 'reflection', 'refraction']).name('Env Maps').onChange(value => {
-          const envMaps = value === 'none' ? null : value === 'reflection' ? reflectionMapTexture : refractionMapTexture;
+          if (value === 'refraction') {
+            textureEquirec.mapping = THREE.EquirectangularRefractionMapping;
+          } else if (value === 'reflection') {
+            textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
+          } else {
+          }
           this.meshes.forEach(mesh => {
-            mesh.material.envMap = envMaps;
+            if (value === 'none') {
+              mesh.material.envMap = null;
+            } else {
+              mesh.material.envMap = textureEquirec;
+            }
             mesh.material.needsUpdate = true;
           });
         });
@@ -607,26 +766,24 @@
 
         this.physicalMaterialParams = {
           color: 0x6699ff,
-          emissive: 0x000000,
-          roughness: 1,
-          metalness: 0,
+          emissive: 0xf1a91a,
+          roughness: 0.5,
+          metalness: 0.5,
           ior: 1.5,
           reflectivity: 1,
           iridescence: 0,
           iridescenceIOR: 1.5,
           sheen: 0,
-          sheenRoughness: 1,
+          sheenRoughness: 0,
+          sheenRoughnessMap: 'none',
           sheenColor: 0xffffff,
           clearcoat: 0,
           clearcoatRoughness: 0,
-          specularIntensity: 0.14,
+          specularIntensity: 1,
           specularColor: 0xffffff,
           envMaps: 'none',
           map: 'none',
           roughnessMap: 'none',
-          alphaMap: 'none',
-          metalnessMap: 'none',
-          iridescenceMap: 'none'
         };
 
         this.createPhysicalGUI();
@@ -706,6 +863,14 @@
           });
         });
 
+        folder.add(this.physicalMaterialParams, 'sheenRoughnessMap', ['none', 'house']).onChange(value => {
+          const map = value === 'none' ? null : value === 'house' ? textureEquirec : null;
+          this.meshes.forEach(mesh => {
+            mesh.material.sheenRoughnessMap = map;
+            mesh.material.needsUpdate = true;
+          });
+        });
+
         folder.addColor(this.physicalMaterialParams, 'sheenColor').onChange(value => {
           this.meshes.forEach(mesh => {
             mesh.material.sheenColor.set(value);
@@ -742,9 +907,18 @@
         });
 
         folder.add(this.physicalMaterialParams, 'envMaps', ['none', 'reflection', 'refraction']).name('Env Maps').onChange(value => {
-          const envMaps = value === 'none' ? null : value === 'reflection' ? reflectionMapTexture : refractionMapTexture;
+          if (value === 'refraction') {
+            textureEquirec.mapping = THREE.EquirectangularRefractionMapping;
+          } else if (value === 'reflection') {
+            textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
+          } else {
+          }
           this.meshes.forEach(mesh => {
-            mesh.material.envMap = envMaps;
+            if (value === 'none') {
+              mesh.material.envMap = null;
+            } else {
+              mesh.material.envMap = textureEquirec;
+            }
             mesh.material.needsUpdate = true;
           });
         });
@@ -757,48 +931,12 @@
             mesh.material.needsUpdate = true;
           });
         });
-
-        folder.add(this.physicalMaterialParams, 'roughnessMap', ['none', 'corn']).onChange(value => {
-          const map = value === 'none' ? null : value === 'corn' ? cornTexture : null;
-          this.meshes.forEach(mesh => {
-            mesh.material.roughnessMap = map;
-            mesh.material.color.set(0xf4eceb);
-            mesh.material.needsUpdate = true;
-          });
-        });
-
-        folder.add(this.physicalMaterialParams, 'alphaMap', ['none', 'corn']).onChange(value => {
-          const map = value === 'none' ? null : value === 'corn' ? cornTexture : null;
-          this.meshes.forEach(mesh => {
-            mesh.material.alphaMap = map;
-            mesh.material.color.set(0xf4eceb);
-            mesh.material.needsUpdate = true;
-          });
-        });
-
-        folder.add(this.physicalMaterialParams, 'metalnessMap', ['none', 'corn']).onChange(value => {
-          const map = value === 'none' ? null : value === 'corn' ? cornTexture : null;
-          this.meshes.forEach(mesh => {
-            mesh.material.metalnessMap = map;
-            mesh.material.color.set(0xf4eceb);
-            mesh.material.needsUpdate = true;
-          });
-        });
-
-        folder.add(this.physicalMaterialParams, 'iridescenceMap', ['none', 'corn']).onChange(value => {
-          const map = value === 'none' ? null : value === 'corn' ? cornTexture : null;
-          this.meshes.forEach(mesh => {
-            mesh.material.iridescenceMap = map;
-            mesh.material.color.set(0xf4eceb);
-            mesh.material.needsUpdate = true;
-          });
-        });
       }
     }
 
     // AXES helper
-    const axesHelper = new THREE.AxesHelper(100);
-    scene.add(axesHelper);
+    // const axesHelper = new THREE.AxesHelper(100);
+    // scene.add(axesHelper);
 
     // Walls Front
     const frontBoardGeometry = new THREE.PlaneGeometry(12, 10);
@@ -836,6 +974,8 @@
     const tableGeometry = new THREE.BoxGeometry(8, 2, 6);
     const tableMesh = new THREE.Mesh(tableGeometry, new THREE.MeshPhysicalMaterial({ color: 0x7f8389 }));
     tableMesh.position.set(0, -4, 4);
+    tableMesh.receiveShadow = true;
+    tableMesh.castShadow = true;
 
     // Cone
     const coneGeometry = new THREE.ConeGeometry(1.2, 4, 50, 1.8, false, Math.PI * 2.00, Math.PI * 2.00);
@@ -845,35 +985,25 @@
         color: 0x3ff7c3,
       }));
     coneMesh.position.set(-2, -1, 3);
+    coneMesh.receiveShadow = true;
+    coneMesh.castShadow = true;
 
     // Cylinder
     const CylinderGeometry = new THREE.CylinderGeometry(1.4, 1.4, 2.2, 50);
     const cylinderMesh = new THREE.Mesh(CylinderGeometry, new THREE.MeshPhongMaterial({ color: 0xf02e21 }));
     cylinderMesh.position.set(2, -1.9, 3);
+    cylinderMesh.receiveShadow = true;
+    cylinderMesh.castShadow = true;
 
     // Sphere
     const sphereGeometry = new THREE.SphereGeometry(0.9, 30, 30);
     const sphereMesh = new THREE.Mesh(sphereGeometry, new THREE.MeshPhysicalMaterial({ color: 0x6699ff }));
     sphereMesh.position.set(0, -2.1, 5);
+    sphereMesh.receiveShadow = true;
+    sphereMesh.castShadow = true;
 
     scene.add(frontBoardMesh, leftBoardMesh, rightBoardMesh, topBoardMesh, bottomBoardMesh, tableMesh);
     scene.add(coneMesh, cylinderMesh, sphereMesh);
-
-    const rectLightLeft = new THREE.RectAreaLight(0xff0000, 3, 8, 10);
-    rectLightLeft.position.set(-5.999, 0, 4);
-    rectLightLeft.lookAt(0, 0, 4);
-
-    const rectLightRight = new THREE.RectAreaLight(0x00ff00, 3, 8, 10);
-    rectLightRight.position.set(5.99, 0, 4);
-    rectLightRight.lookAt(0, 0, 4);
-
-    scene.add(rectLightLeft, rectLightRight);
-
-    const rectLightHelper = new RectAreaLightHelper(rectLightRight);
-    rectLightRight.add(rectLightHelper);
-
-    const rectLightLeftHelper = new RectAreaLightHelper(rectLightLeft);
-    rectLightLeft.add(rectLightLeftHelper);
 
     const wallController = new WallController(gui, leftBoardMesh, rightBoardMesh, frontBoardMesh, topBoardMesh, bottomBoardMesh);
     const materialControls = new MaterialControls(gui, [coneMesh, cylinderMesh, sphereMesh]);
@@ -881,7 +1011,7 @@
     const phongMaterialControls = new PhongMaterialControls(gui, [cylinderMesh]);
     const physicalMaterialControls = new PhysicalMaterialControls(gui, [sphereMesh]);
 
-    gui.close();
+    // gui.close();
 
     function createMesh(geometry, color, x, y, z, sideView, rotationX, rotationY, rotationZ) {
       const material = new THREE.MeshPhysicalMaterial({
@@ -903,6 +1033,7 @@
       if (rotationZ) {
         mesh.rotation.z = rotationZ * Math.PI / 180;
       }
+      mesh.receiveShadow = true;
 
       return mesh;
     }
@@ -931,7 +1062,7 @@
       controls.update();
       renderer.render(scene, camera);
 
-      renderer.setAnimationLoop(render);
+      // requestAnimationFrame(render);
     }
 
     renderer.setAnimationLoop(render);
