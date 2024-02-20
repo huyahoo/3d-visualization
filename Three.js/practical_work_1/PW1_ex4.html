@@ -1,0 +1,352 @@
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Three.js - Basic Cube</title>
+  <style>
+    html,
+    body {
+      width: 50%;
+      height: 50%;
+      margin: 0;
+    }
+
+    #c {
+      width: 50%;
+      height: 50%;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+        }
+      }
+    </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    var scene = new THREE.Scene();
+
+    const light = new THREE.DirectionalLight(0xFFFFFF, 1);
+    light.position.set(15, 15, 15);
+    scene.add(light);
+
+    scene.background = new THREE.Color(0xFFFFFF);
+
+    var aspect = window.innerWidth / window.innerHeight;
+    var camera = new THREE.PerspectiveCamera(
+      75,
+      aspect,
+      0.1,
+      1000
+    );
+    camera.position.z = 100;
+
+    var renderer = new THREE.WebGLRenderer({antialias: true});
+
+    renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(
+      camera,
+      renderer.domElement
+    );
+
+    // AXES helper
+    const axesHelper = new THREE.AxesHelper(100);
+    scene.add(axesHelper);
+
+    // Body
+    const body = {
+      geometry: new THREE.BoxGeometry(90, 16, 20),
+      color: 0xe6b637,
+      x: 0,
+      y: 0,
+      z: 0,
+    };
+
+    // frontLeftLegObj
+    const frontLeftJoint = {
+      geometry: new THREE.CylinderGeometry(6, 6, 2, 8), // radiusTop=4, radiusBottom=4, height=2, radialSegments=7
+      color: 0x1e1f1d,
+      x: -30,
+      y: 0,
+      z: 10,
+      rotationX: 0.5,
+    };
+    const frontTopLegLeft = {
+      geometry: new THREE.CylinderGeometry(3, 2, 32, 12),
+      color: 0xffffff,
+      x: 10,
+      y: 3,
+      z: 10,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+    const frontBottomLegLeft = {
+      geometry: new THREE.BoxGeometry(23, 2, 3),
+      color: 0x1e1f1d,
+      x: 12,
+      y: 3,
+      z: 27,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+
+    // frontRightLegObj
+    const frontRightJoint = {
+      geometry: new THREE.CylinderGeometry(6, 6, 2, 8), // radiusTop=4, radiusBottom=4, height=2, radialSegments=7
+      color: 0x1e1f1d,
+      x: 30,
+      y: 0,
+      z: 10,
+      rotationX: 0.5,
+    };
+    const frontTopLegRight = {
+      geometry: new THREE.CylinderGeometry(3, 2, 32, 12),
+      color: 0xffffff,
+      x: 10,
+      y: 3,
+      z: 10,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+    const frontBottomLegRight = {
+      geometry: new THREE.BoxGeometry(23, 2, 3),
+      color: 0x1e1f1d,
+      x: 12,
+      y: 3,
+      z: 27,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+
+    // backLeftLegObj
+    const backLeftJoint = {
+      geometry: new THREE.CylinderGeometry(6, 6, 2, 8), // radiusTop=4, radiusBottom=4, height=2, radialSegments=7
+      color: 0x1e1f1d,
+      x: -30,
+      y: 0,
+      z: -10,
+      rotationX: 0.5,
+    };
+    const backTopLegLeft = {
+      geometry: new THREE.CylinderGeometry(3, 2, 32, 12),
+      color: 0xffffff,
+      x: 10,
+      y: -3,
+      z: 10,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+    const backBottomLegLeft = {
+      geometry: new THREE.BoxGeometry(23, 2, 3),
+      color: 0x1e1f1d,
+      x: 12,
+      y: -3,
+      z: 27,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+
+    // backRightLegObj
+    const backRightJoint = {
+      geometry: new THREE.CylinderGeometry(6, 6, 2, 8), // radiusTop=4, radiusBottom=4, height=2, radialSegments=7
+      color: 0x1e1f1d,
+      x: 30,
+      y: 0,
+      z: -10,
+      rotationX: 0.5,
+    };
+    const backTopLegRight = {
+      geometry: new THREE.CylinderGeometry(3, 2, 32, 12),
+      color: 0xffffff,
+      x: 10,
+      y: -3,
+      z: 10,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+    const backBottomLegRight = {
+      geometry: new THREE.BoxGeometry(23, 2, 3),
+      color: 0x1e1f1d,
+      x: 12,
+      y: -3,
+      z: 27,
+      rotationX: -90/180,
+      rotationZ: 45/180,
+    };
+
+    
+    
+    const bodyMesh = createMesh(body.geometry, body.color, body.x, body.y, body.z, body.rotationX, body.rotationY, body.rotationZ);
+    
+    // frontLeftLegObj
+    const frontLeftLegObj = [frontTopLegLeft, frontBottomLegLeft];
+    let frontLeftLegMesh = createMesh(frontLeftJoint.geometry, frontLeftJoint.color, frontLeftJoint.x, frontLeftJoint.y, frontLeftJoint.z, frontLeftJoint.rotationX, frontLeftJoint.rotationY, frontLeftJoint.rotationZ);
+
+    for (let i = 0; i < frontLeftLegObj.length; i++) {
+      let mesh = createMesh(
+        frontLeftLegObj[i].geometry,
+        frontLeftLegObj[i].color,
+        frontLeftLegObj[i].x,
+        frontLeftLegObj[i].y,
+        frontLeftLegObj[i].z,
+        frontLeftLegObj[i].rotationX,
+        frontLeftLegObj[i].rotationY,
+        frontLeftLegObj[i].rotationZ
+      );
+      frontLeftLegMesh.add(mesh);
+    }
+
+    // frontRightLegObj
+    const frontRightLegObj = [frontTopLegRight, frontBottomLegRight];
+    let frontRightLegMesh = createMesh(frontRightJoint.geometry, frontRightJoint.color, frontRightJoint.x, frontRightJoint.y, frontRightJoint.z, frontRightJoint.rotationX, frontRightJoint.rotationY, frontRightJoint.rotationZ);
+
+    for (let i = 0; i < frontRightLegObj.length; i++) {
+      let mesh = createMesh(
+        frontRightLegObj[i].geometry,
+        frontRightLegObj[i].color,
+        frontRightLegObj[i].x,
+        frontRightLegObj[i].y,
+        frontRightLegObj[i].z,
+        frontRightLegObj[i].rotationX,
+        frontRightLegObj[i].rotationY,
+        frontRightLegObj[i].rotationZ
+      );
+      frontRightLegMesh.add(mesh);
+    }
+
+    // backLeftLegObj
+    const backLeftLegObj = [backTopLegLeft, backBottomLegLeft];
+    let backLeftLegMesh = createMesh(backLeftJoint.geometry, backLeftJoint.color, backLeftJoint.x, backLeftJoint.y, backLeftJoint.z, backLeftJoint.rotationX, backLeftJoint.rotationY, backLeftJoint.rotationZ);
+
+    for (let i = 0; i < backLeftLegObj.length; i++) {
+      let mesh = createMesh(
+        backLeftLegObj[i].geometry,
+        backLeftLegObj[i].color,
+        backLeftLegObj[i].x,
+        backLeftLegObj[i].y,
+        backLeftLegObj[i].z,
+        backLeftLegObj[i].rotationX,
+        backLeftLegObj[i].rotationY,
+        backLeftLegObj[i].rotationZ
+      );
+      backLeftLegMesh.add(mesh);
+    }
+
+    // backRightLegObj
+    const backRightLegObj = [backTopLegRight, backBottomLegRight];
+    let backRightLegMesh = createMesh(backRightJoint.geometry, backRightJoint.color, backRightJoint.x, backRightJoint.y, backRightJoint.z, backRightJoint.rotationX, backRightJoint.rotationY, backRightJoint.rotationZ);
+
+    for (let i = 0; i < backRightLegObj.length; i++) {
+      let mesh = createMesh(
+        backRightLegObj[i].geometry,
+        backRightLegObj[i].color,
+        backRightLegObj[i].x,
+        backRightLegObj[i].y,
+        backRightLegObj[i].z,
+        backRightLegObj[i].rotationX,
+        backRightLegObj[i].rotationY,
+        backRightLegObj[i].rotationZ
+      );
+      backRightLegMesh.add(mesh);
+    }
+
+    const partsMesh = [bodyMesh, frontLeftLegMesh, frontRightLegMesh, backLeftLegMesh, backRightLegMesh]
+
+    for (let i = 0; i < partsMesh.length; i++) {
+      scene.add(partsMesh[i]);
+    }
+
+    function createMesh(geometry, color, x, y, z, rotationX, rotationY, rotationZ) {
+      const material = new THREE.MeshStandardMaterial({
+        side: THREE.DoubleSide,
+        color: color,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, z);
+      if (rotationX) {
+        mesh.rotation.x = Math.PI * rotationX;
+      }
+
+      if (rotationY) {
+        mesh.rotation.y = Math.PI * rotationY;
+      }
+
+      if (rotationZ) {
+        mesh.rotation.z = Math.PI * rotationZ;
+      }
+      return mesh;
+    }
+
+    function resizeRendererToDisplaySize(renderer) {
+      const canvas = renderer.domElement;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const needResize =
+        canvas.width !== width ||
+        canvas.height !== height;
+      if (needResize) {
+        renderer.setSize(width, height, false);
+      }
+      return needResize;
+    }
+
+    function render(time) {
+      // renderer.setPixelRatio(window.devicePixelRatio);
+      if (resizeRendererToDisplaySize(renderer)) {
+        const canvas = renderer.domElement;
+        camera.aspect =
+          canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix();
+      }
+      time *= 0.001;
+
+      // Calculate the rotation angle for frontLeftLegMesh and backRightLegMesh
+      let frontLeftAngle = 1/6 * Math.PI * (Math.cos(time)) + 1/15 * Math.PI;
+      let backRightAngle = 1/6 * Math.PI * (Math.cos(time)) + 1/15 * Math.PI;
+
+      // Set rotation for frontLeftLegMesh and backRightLegMesh
+      frontLeftLegMesh.rotation.y = frontLeftAngle;
+      backRightLegMesh.rotation.y = backRightAngle;
+
+      // Calculate the rotation angle for frontRightLegMesh and backLeftLegMesh (opposite direction)
+      let frontRightAngle = -frontLeftAngle;
+      let backLeftAngle = -backRightAngle;
+
+      // Set rotation for frontRightLegMesh and backLeftLegMesh
+      frontRightLegMesh.rotation.y = frontRightAngle;
+      backLeftLegMesh.rotation.y = backLeftAngle;
+
+      for (let i = 0; i < partsMesh.length; i++) {
+        partsMesh[i].position.x -= 0.05;
+      }
+     
+      controls.update();
+      renderer.render(scene, camera);
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+
+  </script>
+</body>
+
+</html>
