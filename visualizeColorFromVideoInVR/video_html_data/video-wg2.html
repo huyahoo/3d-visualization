@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+
+      margin: 0;
+      overflow: hidden;
+      background-color: #aaaaaa;
+      background-attachment: fixed !important;
+    }
+  </style>
+  <style>
+    body {
+      font-family: Monospace;
+      margin: 0px;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container"></div>
+  <script type="x-shader/x-vertex" id="RGBVertexShader">
+		uniform sampler2D tex;
+		varying vec3 color;
+
+		void main() {
+			color = texture2D ( tex, position.xy ).rgb;
+			gl_PointSize = 1.0;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4(color-vec3(.5,.5,.5), 1.0);
+		}
+	</script>
+
+  <script type="x-shader/x-fragment" id="RGBFragmentShader">
+		varying vec3 color;
+    out vec4 out_FragColor;
+
+		void main() {
+			out_FragColor.rgb = color;
+			out_FragColor.a = 1.0;
+		}
+	</script>
+
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import WEBGL from "three/addons/capabilities/WebGL.js";
+
+    var camera, controls, scene, renderer, container;
+    var context, canvas;
+    var plan;
+
+    // VIDEO AND THE ASSOCIATED TEXTURE
+    var video, videoTexture;
+
+    init();
+    animate();
+
+    function init() {
+      if (WEBGL.isWebGL2Available() === false) {
+        document.body.appendChild(WEBGL.getWebGL2ErrorMessage());
+      }
+      container = document.getElementById('container');
+      canvas = document.createElement("canvas");
+      context = canvas.getContext("webgl2");
+      document.body.appendChild(canvas);
+
+      scene = new THREE.Scene();
+
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        context: context,
+      }); //, antialias: true, alpha: true } );
+      renderer.autoClear = false;
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = false;
+
+      container.appendChild(renderer.domElement);
+
+      camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.001,
+        10
+      );
+      camera.position.z = 2;
+      controls = new OrbitControls(camera, renderer.domElement);
+      // controls.minDistance = 0.005;
+      // controls.maxDistance = 1.0;
+      controls.enableRotate = true;
+      controls.addEventListener("change", render);
+      controls.update();
+
+      // EdgesGeometry
+      const size = 1;
+      const edgesWidthSegments = 2;
+      const edgesHeightSegments = 2;
+      const edgesDepthSegments = 2;
+      const boxGeometry = new THREE.BoxGeometry(
+        size, size, size,
+        edgesWidthSegments, edgesHeightSegments, edgesDepthSegments);
+      const edgesGeometry = new THREE.EdgesGeometry(
+        boxGeometry
+      );
+      const edges = new THREE.LineSegments(
+        edgesGeometry,
+        new THREE.LineBasicMaterial({ color: 0xffffff })
+      );
+      edges.position.set(0, 0, 0);
+      scene.add(edges);
+
+      video = document.createElement("video");
+      video.src = "video-short.mp4";
+      video.load();
+      video.muted = true;
+      video.loop = true;
+
+      video.onloadeddata = function () {
+        videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.NearestFilter;
+        videoTexture.magFilter = THREE.NearestFilter;
+        videoTexture.generateMipmaps = false;
+        videoTexture.format = THREE.RGBAFormat;
+
+        // Processed Video
+        var colorSpaceMaterial = new THREE.ShaderMaterial({
+          vertexShader: document.getElementById('RGBVertexShader').textContent,
+          fragmentShader: document.getElementById('RGBFragmentShader').textContent,
+          glslVersion: THREE.GLSL3,
+          uniforms: {
+            tex: { value: videoTexture },
+          }
+        });
+        let discret = 1;
+        const geometry = new THREE.BufferGeometry();
+        const positions = [];
+        let compteur = 0;
+        for (let i = 0; i < video.videoHeight; i += discret)
+          for (let j = 0; j < video.videoWidth; j += discret) {
+
+            // positions
+            const x = (i + 0.5) / video.videoHeight;
+            const y = (j + 0.5) / video.videoWidth;
+            const z = 0;
+
+            positions.push(x, y, z);
+            compteur++;
+          }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.computeBoundingSphere();
+        const points = new THREE.Points(geometry, colorSpaceMaterial);
+        points.position.z = 0;
+        scene.add(points);
+        // AXES HELPER
+        var axesHelper = new THREE.AxesHelper();
+        axesHelper.isLineSegments = true;
+        scene.add(axesHelper);
+
+        // Grid Helper
+        var gridHelper = new THREE.GridHelper(1, 10);
+        gridHelper.position.y = -0.5;
+        scene.add(gridHelper);
+
+        // Original Video
+        var geometry2 = new THREE.PlaneGeometry(
+          1,
+          video.videoHeight / video.videoWidth
+        );
+        var material2 = new THREE.MeshBasicMaterial({
+          map: videoTexture,
+          side: THREE.DoubleSide,
+        });
+        plan = new THREE.Mesh(geometry2, material2);
+        plan.position.z = -0.5;
+        plan.receiveShadow = false;
+        plan.castShadow = false;
+        scene.add(plan);
+        video.play();
+      };
+
+      window.addEventListener("resize", onWindowResize, false);
+    }
+
+    function render() {
+      renderer.clear();
+      renderer.render(scene, camera);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      render();
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      render();
+    }
+  </script>
+</body>
+
+</html>
