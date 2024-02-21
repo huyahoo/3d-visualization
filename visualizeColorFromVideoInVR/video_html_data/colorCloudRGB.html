@@ -125,11 +125,18 @@
       );
       camera.position.z = 2;
       controls = new OrbitControls(camera, renderer.domElement);
-      // controls.minDistance = 0.005;
-      // controls.maxDistance = 1.0;
-      controls.enableRotate = true;
       controls.addEventListener("change", render);
       controls.update();
+
+      // AXES HELPER
+      var axesHelper = new THREE.AxesHelper();
+      axesHelper.isLineSegments = true;
+      scene.add(axesHelper);
+
+      // Grid Helper
+      var gridHelper = new THREE.GridHelper(1, 10);
+      gridHelper.position.y = -0.5;
+      scene.add(gridHelper);
 
       // EdgesGeometry
       const size = 1;
@@ -208,16 +215,6 @@
         const shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
         shadowSpacePoints.position.set(-0.5, -0.5, -0.5);
         scene.add(shadowSpacePoints);
-
-        // AXES HELPER
-        var axesHelper = new THREE.AxesHelper();
-        axesHelper.isLineSegments = true;
-        scene.add(axesHelper);
-
-        // Grid Helper
-        var gridHelper = new THREE.GridHelper(1, 10);
-        gridHelper.position.y = -0.5;
-        scene.add(gridHelper);
 
         // Original Video
         var geometry2 = new THREE.PlaneGeometry(
