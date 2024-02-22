@@ -266,11 +266,7 @@
       const controller = event.target;
       if (controller.userData.selected !== undefined) {
         const object = controller.userData.selected;
-        console.log(object.material.emissive);
-
-        object.material.emissive.b = 0;
         scene.attach(object);
-
         controller.userData.selected = undefined;
         grabbing = false;
 
@@ -341,7 +337,7 @@
         videoTexture.generateMipmaps = false;
         videoTexture.format = THREE.RGBAFormat;
 
-        let discret = 10;
+        let discret = 1;
         const positions = [];
         for (let i = 0; i < video.videoHeight; i += discret)
           for (let j = 0; j < video.videoWidth; j += discret) {
