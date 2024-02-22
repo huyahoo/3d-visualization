@@ -28,7 +28,7 @@
 
 		void main() {
 			color = texture2D ( tex, position.xy ).rgb;
-			gl_PointSize = 1.0;
+			gl_PointSize = 2.0;
 			gl_Position = projectionMatrix * modelViewMatrix * vec4(color-vec3(.5,.5,.5), 1.0);
 		}
 	</script>
@@ -49,7 +49,7 @@
 
     void main() {
       color = texture2D(tex, position.xy).rgb;
-      gl_PointSize = 1.0;
+      gl_PointSize = 2.0;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(color.x, 0.0, color.z, 1.0);
     }
   </script>
@@ -104,7 +104,6 @@
       object: null,
       initialScale: 1
     };
-    const spheres = [];
 
     // Visualization Associated
     const gui = new GUI();
@@ -231,38 +230,32 @@
     }
 
     // VR Associated Function
-    const SphereRadius = 0.05;
     function onPinchStartLeft(event) {
       const controller = event.target;
       if (grabbing) {
         const indexTip = controller.joints['index-finger-tip'];
-        const sphere = collideObject(indexTip);
-        if (sphere) {
-          const sphere2 = hand2.userData.selected;
-          console.log('sphere1', sphere, 'sphere2', sphere2);
-          if (sphere === sphere2) {
+        const object = collideObject(indexTip);
+        if (object) {
+          const object2 = hand2.userData.selected;
+          if (object === object2) {
             scaling.active = true;
-            scaling.object = sphere;
-            scaling.initialScale = sphere.scale.x;
+            scaling.object = object;
+            scaling.initialScale = object.scale.x;
             scaling.initialDistance = indexTip.position.distanceTo(hand2.joints['index-finger-tip'].position);
             return;
           }
         }
+        // if (object) {
+        //   const object2 = hand2.userData.selected;
+        //   if (object === object2) {
+        //     scaling.active = true;
+        //     scaling.object = object;
+        //     scaling.initialScale = object.scale.x;
+        //     scaling.initialDistance = indexTip.position.distanceTo(hand2.joints['index-finger-tip'].position);
+        //     return;
+        //   }
+        // }
       }
-      const geometry = new THREE.BoxGeometry(SphereRadius, SphereRadius, SphereRadius);
-      const material = new THREE.MeshStandardMaterial({
-        color: Math.random() * 0xffffff,
-        roughness: 1.0,
-        metalness: 0.0
-      });
-
-      const spawn = new THREE.Mesh(geometry, material);
-      spawn.geometry.computeBoundingSphere();
-      const indexTip = controller.joints['index-finger-tip'];
-      spawn.position.copy(indexTip.position);
-      spawn.quaternion.copy(indexTip.quaternion);
-      spheres.push(spawn);
-      scene.add(spawn);
     }
 
     function onPinchStartRight(event) {
@@ -290,15 +283,20 @@
       }
       scaling.active = false;
     }
-
+    
     function collideObject(indexTip) {
-      for (let i = 0; i < spheres.length; i++) {
-        const sphere = spheres[i];
-        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(sphere.getWorldPosition(tmpVector2));
-        if (distance < sphere.geometry.boundingSphere.radius * sphere.scale.x) {
-          return sphere;
+        const object = plan;
+        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
+        if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
+          return object;
         }
-      }
+      // for (let i = 0; i < scene.length; i++) {
+      //   const object = objects[i];
+      //   const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
+      //   if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
+      //     return object;
+      //   }
+      // }
       return null;
     }
 
@@ -341,57 +339,10 @@
       controls = new OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 1.6, 0);
       controls.update();
-      // controls.addEventListener("change", render);
-      controls.update();
-
-      controller1 = renderer.xr.getController(0);
-      scene.add(controller1);
-
-      controller2 = renderer.xr.getController(1);
-      scene.add(controller2);
-
-      const controllerModelFactory = new XRControllerModelFactory();
-      const handModelFactory = new XRHandModelFactory();
-
-      // Hand 1
-      controllerGrip1 = renderer.xr.getControllerGrip(0);
-      controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
-      scene.add(controllerGrip1);
-
-      hand1 = renderer.xr.getHand(0);
-      hand1.addEventListener('pinchstart', onPinchStartLeft);
-      hand1.addEventListener('pinchend', () => {
-
-        scaling.active = false;
-
-      });
-      hand1.add(handModelFactory.createHandModel(hand1));
-
-      scene.add(hand1);
-
-      // Hand 2
-      controllerGrip2 = renderer.xr.getControllerGrip(1);
-      controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
-      scene.add(controllerGrip2);
-
-      hand2 = renderer.xr.getHand(1);
-      hand2.addEventListener('pinchstart', onPinchStartRight);
-      hand2.addEventListener('pinchend', onPinchEndRight);
-      hand2.add(handModelFactory.createHandModel(hand2));
-      scene.add(hand2);
-
-      const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, - 1)]);
-
-      const line = new THREE.Line(geometry);
-      line.name = 'line';
-      line.scale.z = 5;
-
-      controller1.add(line.clone());
-      controller2.add(line.clone());
 
       // AXES HELPER
       var axesHelper = new THREE.AxesHelper();
-      axesHelper.isLineSegments = true;
+      axesHelper.position.set(0, 1.6, 0);
       scene.add(axesHelper);
 
       video = document.createElement("video");
@@ -429,7 +380,7 @@
         const shadowSpaceMaterial = new SpaceMaterial('ShadowVertexShader', 'ShadowFragmentShader').material;
         shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
         // setPointsPosition(colorSpacePoints, shadowSpacePoints, 1, 1, 0);
-        setPointsPosition(colorSpacePoints, shadowSpacePoints, 0, 0, 0);
+        setPointsPosition(colorSpacePoints, shadowSpacePoints, 0, 1.6, 0);
 
         // Density Color Space Material
         const densityColorSpaceMaterial = colorSpaceMaterial.clone();
@@ -452,9 +403,53 @@
           side: THREE.DoubleSide,
         });
         plan = new THREE.Mesh(geometry2, material2);
-        plan.position.z = -0.5;
+        plan.position.set(0, 1.6, -1);
         plan.receiveShadow = false;
         plan.castShadow = false;
+
+        // VR Controller
+        controller1 = renderer.xr.getController(0);
+        scene.add(controller1);
+
+        controller2 = renderer.xr.getController(1);
+        scene.add(controller2);
+
+        const controllerModelFactory = new XRControllerModelFactory();
+        const handModelFactory = new XRHandModelFactory();
+
+        // Hand 1
+        controllerGrip1 = renderer.xr.getControllerGrip(0);
+        controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+        scene.add(controllerGrip1);
+
+        hand1 = renderer.xr.getHand(0);
+        hand1.addEventListener('pinchstart', onPinchStartLeft);
+        hand1.addEventListener('pinchend', () => {
+          scaling.active = false;
+        });
+        hand1.add(handModelFactory.createHandModel(hand1));
+        scene.add(hand1);
+
+        // Hand 2
+        controllerGrip2 = renderer.xr.getControllerGrip(1);
+        controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
+        scene.add(controllerGrip2);
+
+        hand2 = renderer.xr.getHand(1);
+        hand2.addEventListener('pinchstart', onPinchStartRight);
+        hand2.addEventListener('pinchend', onPinchEndRight);
+        hand2.add(handModelFactory.createHandModel(hand2));
+        scene.add(hand2);
+
+        const handInputHelperGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, - 1)]);
+
+        const line = new THREE.Line(handInputHelperGeometry);
+        line.name = 'line';
+        line.scale.z = 5;
+
+        controller1.add(line.clone());
+        controller2.add(line.clone());
+
         scene.add(plan);
         video.play();
       };
