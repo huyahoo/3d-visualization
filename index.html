@@ -232,9 +232,11 @@
     // VR Associated Function
     function onPinchStartLeft(event) {
       const controller = event.target;
+      console.log('start')
       if (grabbing) {
         const indexTip = controller.joints['index-finger-tip'];
         const object = collideObject(indexTip);
+        console.log("pinch Left", object)
         if (object) {
           const object2 = hand2.userData.selected;
           if (object === object2) {
@@ -245,16 +247,6 @@
             return;
           }
         }
-        // if (object) {
-        //   const object2 = hand2.userData.selected;
-        //   if (object === object2) {
-        //     scaling.active = true;
-        //     scaling.object = object;
-        //     scaling.initialScale = object.scale.x;
-        //     scaling.initialDistance = indexTip.position.distanceTo(hand2.joints['index-finger-tip'].position);
-        //     return;
-        //   }
-        // }
       }
     }
 
@@ -274,6 +266,8 @@
       const controller = event.target;
       if (controller.userData.selected !== undefined) {
         const object = controller.userData.selected;
+        console.log(object.material.emissive);
+
         object.material.emissive.b = 0;
         scene.attach(object);
 
@@ -285,19 +279,8 @@
     }
     
     function collideObject(indexTip) {
-        const object = plan;
-        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
-        if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
-          return object;
-        }
-      // for (let i = 0; i < scene.length; i++) {
-      //   const object = objects[i];
-      //   const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
-      //   if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
-      //     return object;
-      //   }
-      // }
-      return null;
+      const object = plan;
+      return object;
     }
 
     init();
@@ -343,7 +326,7 @@
       // AXES HELPER
       var axesHelper = new THREE.AxesHelper();
       axesHelper.position.set(0, 1.6, 0);
-      scene.add(axesHelper);
+      // scene.add(axesHelper);
 
       video = document.createElement("video");
       video.src = "visualizeColorFromVideoInVR/video_html_data/razi.mp4";
@@ -358,7 +341,7 @@
         videoTexture.generateMipmaps = false;
         videoTexture.format = THREE.RGBAFormat;
 
-        let discret = 10;
+        let discret = 5;
         const positions = [];
         for (let i = 0; i < video.videoHeight; i += discret)
           for (let j = 0; j < video.videoWidth; j += discret) {
@@ -456,17 +439,6 @@
 
       window.addEventListener("resize", onWindowResize, false);
     }
-
-    // function render() {
-    //   renderer.clear();
-    //   renderer.render(scene, camera);
-    // }
-
-    // function animate() {
-    //   requestAnimationFrame(animate);
-    //   controls.update();
-    //   render();
-    // }
 
     // VR
     function animate() {
