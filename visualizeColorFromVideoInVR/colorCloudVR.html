@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+  <title>Color Points Cloud Visualization</title>
   <style>
     body {
       margin: 0;
@@ -103,7 +104,6 @@
       object: null,
       initialScale: 1
     };
-    const spheres = [];
 
     // Visualization Associated
     const gui = new GUI();
@@ -230,38 +230,24 @@
     }
 
     // VR Associated Function
-    const SphereRadius = 0.05;
     function onPinchStartLeft(event) {
       const controller = event.target;
+      console.log('start')
       if (grabbing) {
         const indexTip = controller.joints['index-finger-tip'];
-        const sphere = collideObject(indexTip);
-        if (sphere) {
-          const sphere2 = hand2.userData.selected;
-          console.log('sphere1', sphere, 'sphere2', sphere2);
-          if (sphere === sphere2) {
+        const object = collideObject(indexTip);
+        console.log("pinch Left", object)
+        if (object) {
+          const object2 = hand2.userData.selected;
+          if (object === object2) {
             scaling.active = true;
-            scaling.object = sphere;
-            scaling.initialScale = sphere.scale.x;
+            scaling.object = object;
+            scaling.initialScale = object.scale.x;
             scaling.initialDistance = indexTip.position.distanceTo(hand2.joints['index-finger-tip'].position);
             return;
           }
         }
       }
-      const geometry = new THREE.BoxGeometry(SphereRadius, SphereRadius, SphereRadius);
-      const material = new THREE.MeshStandardMaterial({
-        color: Math.random() * 0xffffff,
-        roughness: 1.0,
-        metalness: 0.0
-      });
-
-      const spawn = new THREE.Mesh(geometry, material);
-      spawn.geometry.computeBoundingSphere();
-      const indexTip = controller.joints['index-finger-tip'];
-      spawn.position.copy(indexTip.position);
-      spawn.quaternion.copy(indexTip.quaternion);
-      spheres.push(spawn);
-      scene.add(spawn);
     }
 
     function onPinchStartRight(event) {
@@ -280,25 +266,17 @@
       const controller = event.target;
       if (controller.userData.selected !== undefined) {
         const object = controller.userData.selected;
-        object.material.emissive.b = 0;
         scene.attach(object);
-
         controller.userData.selected = undefined;
         grabbing = false;
 
       }
       scaling.active = false;
     }
-
+    
     function collideObject(indexTip) {
-      for (let i = 0; i < spheres.length; i++) {
-        const sphere = spheres[i];
-        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(sphere.getWorldPosition(tmpVector2));
-        if (distance < sphere.geometry.boundingSphere.radius * sphere.scale.x) {
-          return sphere;
-        }
-      }
-      return null;
+      const object = plan;
+      return object;
     }
 
     init();
@@ -340,61 +318,14 @@
       controls = new OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 1.6, 0);
       controls.update();
-      // controls.addEventListener("change", render);
-      controls.update();
-
-      controller1 = renderer.xr.getController(0);
-      scene.add(controller1);
-
-      controller2 = renderer.xr.getController(1);
-      scene.add(controller2);
-
-      const controllerModelFactory = new XRControllerModelFactory();
-      const handModelFactory = new XRHandModelFactory();
-
-      // Hand 1
-      controllerGrip1 = renderer.xr.getControllerGrip(0);
-      controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
-      scene.add(controllerGrip1);
-
-      hand1 = renderer.xr.getHand(0);
-      hand1.addEventListener('pinchstart', onPinchStartLeft);
-      hand1.addEventListener('pinchend', () => {
-
-        scaling.active = false;
-
-      });
-      hand1.add(handModelFactory.createHandModel(hand1));
-
-      scene.add(hand1);
-
-      // Hand 2
-      controllerGrip2 = renderer.xr.getControllerGrip(1);
-      controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
-      scene.add(controllerGrip2);
-
-      hand2 = renderer.xr.getHand(1);
-      hand2.addEventListener('pinchstart', onPinchStartRight);
-      hand2.addEventListener('pinchend', onPinchEndRight);
-      hand2.add(handModelFactory.createHandModel(hand2));
-      scene.add(hand2);
-
-      const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, - 1)]);
-
-      const line = new THREE.Line(geometry);
-      line.name = 'line';
-      line.scale.z = 5;
-
-      controller1.add(line.clone());
-      controller2.add(line.clone());
 
       // AXES HELPER
       var axesHelper = new THREE.AxesHelper();
-      axesHelper.isLineSegments = true;
-      scene.add(axesHelper);
+      axesHelper.position.set(0, 1.6, 0);
+      // scene.add(axesHelper);
 
       video = document.createElement("video");
-      video.src = "video_html_data/razi.mp4";
+      video.src = "visualizeColorFromVideoInVR/video_html_data/razi.mp4";
       video.load();
       video.muted = true;
       video.loop = true;
@@ -406,7 +337,7 @@
         videoTexture.generateMipmaps = false;
         videoTexture.format = THREE.RGBAFormat;
 
-        let discret = 10;
+        let discret = 1;
         const positions = [];
         for (let i = 0; i < video.videoHeight; i += discret)
           for (let j = 0; j < video.videoWidth; j += discret) {
@@ -428,7 +359,7 @@
         const shadowSpaceMaterial = new SpaceMaterial('ShadowVertexShader', 'ShadowFragmentShader').material;
         shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
         // setPointsPosition(colorSpacePoints, shadowSpacePoints, 1, 1, 0);
-        setPointsPosition(colorSpacePoints, shadowSpacePoints, 0, 0, 0);
+        setPointsPosition(colorSpacePoints, shadowSpacePoints, 0, 1.6, 0);
 
         // Density Color Space Material
         const densityColorSpaceMaterial = colorSpaceMaterial.clone();
@@ -451,26 +382,59 @@
           side: THREE.DoubleSide,
         });
         plan = new THREE.Mesh(geometry2, material2);
-        plan.position.z = -0.5;
+        plan.position.set(0, 1.6, -1);
         plan.receiveShadow = false;
         plan.castShadow = false;
+
+        // VR Controller
+        controller1 = renderer.xr.getController(0);
+        scene.add(controller1);
+
+        controller2 = renderer.xr.getController(1);
+        scene.add(controller2);
+
+        const controllerModelFactory = new XRControllerModelFactory();
+        const handModelFactory = new XRHandModelFactory();
+
+        // Hand 1
+        controllerGrip1 = renderer.xr.getControllerGrip(0);
+        controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+        scene.add(controllerGrip1);
+
+        hand1 = renderer.xr.getHand(0);
+        hand1.addEventListener('pinchstart', onPinchStartLeft);
+        hand1.addEventListener('pinchend', () => {
+          scaling.active = false;
+        });
+        hand1.add(handModelFactory.createHandModel(hand1));
+        scene.add(hand1);
+
+        // Hand 2
+        controllerGrip2 = renderer.xr.getControllerGrip(1);
+        controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
+        scene.add(controllerGrip2);
+
+        hand2 = renderer.xr.getHand(1);
+        hand2.addEventListener('pinchstart', onPinchStartRight);
+        hand2.addEventListener('pinchend', onPinchEndRight);
+        hand2.add(handModelFactory.createHandModel(hand2));
+        scene.add(hand2);
+
+        const handInputHelperGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, - 1)]);
+
+        const line = new THREE.Line(handInputHelperGeometry);
+        line.name = 'line';
+        line.scale.z = 5;
+
+        controller1.add(line.clone());
+        controller2.add(line.clone());
+
         scene.add(plan);
         video.play();
       };
 
       window.addEventListener("resize", onWindowResize, false);
     }
-
-    // function render() {
-    //   renderer.clear();
-    //   renderer.render(scene, camera);
-    // }
-
-    // function animate() {
-    //   requestAnimationFrame(animate);
-    //   controls.update();
-    //   render();
-    // }
 
     // VR
     function animate() {
