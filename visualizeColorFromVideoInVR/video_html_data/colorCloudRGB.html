@@ -84,10 +84,14 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import WEBGL from "three/addons/capabilities/WebGL.js";
+    import { GUI } from 'https://cdn.jsdelivr.net/npm/lil-gui@0.19/+esm';
 
     var camera, controls, scene, renderer, container;
     var context, canvas;
     var plan;
+    var colorSpacePoints, shadowSpacePoints, densityColorPoints;
+
+    const gui = new GUI();
 
     // VIDEO AND THE ASSOCIATED TEXTURE
     var video, videoTexture;
@@ -130,12 +134,13 @@
         new THREE.LineBasicMaterial({ color: 0xffffff })
       );
       edges.position.set(x, y, z);
-      scene.add(edges);
 
       // Grid Helper
       const gridHelper = new THREE.GridHelper(1, 10);
       gridHelper.position.set(x, y - 0.5, z);
-      scene.add(gridHelper);
+
+      // Add to scene
+      scene.add(gridHelper, edges);
     }
 
     function setPointsPosition(colorPoints, shadowPoints, x, y, z) {
@@ -143,6 +148,74 @@
       shadowPoints.position.set(x - .5, y - .5, z - .5);
       scene.add(colorPoints, shadowPoints);
       createBoxHelper(x, y, z);
+    }
+
+    function setVisible(visible, meshList, colorPoints, shadowPoints) {
+      meshList.forEach((mesh) => {
+        scene.remove(mesh);
+      })
+      if (visible) {
+        scene.add(colorPoints, shadowPoints);
+      }
+    }
+
+    function createGUI(meshList) {
+      const colorSpaceObj = {
+        colorSpace: 'RGB',
+        density: false,
+      }
+
+      function selectSpacePoints(colorSpace, show) {
+        const spacePoints = {
+          'RGB': show ? densityColorPoints : colorSpacePoints,
+          'CIExyY': show ? densityColorPoints : colorSpacePoints,
+          'CIELAB': show ? densityColorPoints : colorSpacePoints,
+        }
+
+        return spacePoints[colorSpace];
+      }
+
+      var pausePlayObj = {
+        pausePlay: function () {
+          if (!video.paused) {
+            console.log("pause");
+            video.pause();
+          } else {
+            console.log("play");
+            video.play();
+          }
+        },
+        add10sec: function () {
+          video.currentTime = video.currentTime + 10;
+          console.log(video.currentTime);
+        },
+      };
+
+      gui.add(colorSpaceObj, 'colorSpace', ['RGB', 'CIExyY', 'CIELAB']).name('Color Space').onChange((value) => {
+        setVisible(false, meshList);
+        colorSpaceObj.colorSpace = value;
+        switch(value) {
+          case 'RGB':
+            setVisible(true, meshList, selectSpacePoints(value, colorSpaceObj.density), shadowSpacePoints);
+            break;
+          case 'CIExyY':
+            setVisible(true, meshList, selectSpacePoints(value, colorSpaceObj.density), shadowSpacePoints);
+            break;
+          case 'CIELAB':
+            setVisible(true, meshList, selectSpacePoints(value, colorSpaceObj.density), shadowSpacePoints);
+            break;
+          default:
+            break;
+        }
+      });
+
+      gui.add(colorSpaceObj, 'density').name('Visualize Density').onChange((value) => {
+        colorSpaceObj.density = value;
+        setVisible(true, meshList, selectSpacePoints(colorSpaceObj.colorSpace, value), shadowSpacePoints);
+      });
+
+      gui.add(pausePlayObj, "pausePlay").name("Pause/play video");
+      gui.add(pausePlayObj, "add10sec").name("Add 10 seconds");
     }
 
     init();
@@ -215,19 +288,24 @@
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.computeBoundingSphere();
-        const colorPoints = new THREE.Points(geometry, colorSpaceMaterial);
+        colorSpacePoints = new THREE.Points(geometry, colorSpaceMaterial);
 
         // Shadow Space Material
         const shadowSpaceMaterial = new SpaceMaterial('ShadowVertexShader', 'ShadowFragmentShader').material;
-        const shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
-        setPointsPosition(colorPoints, shadowSpacePoints, 1, 1, 0);
+        shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
+        // setPointsPosition(colorSpacePoints, shadowSpacePoints, 1, 1, 0);
+        setPointsPosition(colorSpacePoints, shadowSpacePoints, 0, 0, 0);
 
         // Density Color Space Material
         const densityColorSpaceMaterial = colorSpaceMaterial.clone();
         densityColorSpaceMaterial.blending = THREE.AdditiveBlending;
         densityColorSpaceMaterial.transparent = true;
-        const densityColorPoints = new THREE.Points(geometry, densityColorSpaceMaterial);
-        setPointsPosition(densityColorPoints, shadowSpacePoints.clone(), -1, 1, 0);
+        densityColorPoints = new THREE.Points(geometry, densityColorSpaceMaterial);
+        // setPointsPosition(densityColorPoints, shadowSpacePoints.clone(), -1, 1, 0);
+        
+        // Create GUI
+        const meshList = [colorSpacePoints, shadowSpacePoints, densityColorPoints];
+        createGUI(meshList);
 
         // Original Video
         var geometry2 = new THREE.PlaneGeometry(
