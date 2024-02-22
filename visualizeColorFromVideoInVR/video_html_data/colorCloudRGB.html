@@ -92,6 +92,59 @@
     // VIDEO AND THE ASSOCIATED TEXTURE
     var video, videoTexture;
 
+    class SpaceMaterial {
+      constructor(vertexShaderId, fragmentShaderId) {
+        this.vertexShaderId = vertexShaderId;
+        this.fragmentShaderId = fragmentShaderId;
+        this.material = this.createMaterial();
+      }
+
+      createMaterial() {
+        return new THREE.ShaderMaterial({
+          vertexShader: document.getElementById(this.vertexShaderId).textContent,
+          fragmentShader: document.getElementById(this.fragmentShaderId).textContent,
+          glslVersion: THREE.GLSL3,
+          uniforms: {
+            tex: { value: videoTexture },
+          },
+        });
+      }
+
+      compute
+    }
+
+    function createBoxHelper(x, y, z) {
+      // EdgesGeometry
+      const size = 1;
+      const edgesWidthSegments = 2;
+      const edgesHeightSegments = 2;
+      const edgesDepthSegments = 2;
+      const boxGeometry = new THREE.BoxGeometry(
+        size, size, size,
+        edgesWidthSegments, edgesHeightSegments, edgesDepthSegments);
+      const edgesGeometry = new THREE.EdgesGeometry(
+        boxGeometry
+      );
+      const edges = new THREE.LineSegments(
+        edgesGeometry,
+        new THREE.LineBasicMaterial({ color: 0xffffff })
+      );
+      edges.position.set(x, y, z);
+      scene.add(edges);
+
+      // Grid Helper
+      const gridHelper = new THREE.GridHelper(1, 10);
+      gridHelper.position.set(x, y - 0.5, z);
+      scene.add(gridHelper);
+    }
+
+    function setPointsPosition(colorPoints, shadowPoints, x, y, z) {
+      colorPoints.position.set(x, y, z);
+      shadowPoints.position.set(x - .5, y - .5, z - .5);
+      scene.add(colorPoints, shadowPoints);
+      createBoxHelper(x, y, z);
+    }
+
     init();
     animate();
 
@@ -133,31 +186,8 @@
       axesHelper.isLineSegments = true;
       scene.add(axesHelper);
 
-      // Grid Helper
-      var gridHelper = new THREE.GridHelper(1, 10);
-      gridHelper.position.y = -0.5;
-      scene.add(gridHelper);
-
-      // EdgesGeometry
-      const size = 1;
-      const edgesWidthSegments = 2;
-      const edgesHeightSegments = 2;
-      const edgesDepthSegments = 2;
-      const boxGeometry = new THREE.BoxGeometry(
-        size, size, size,
-        edgesWidthSegments, edgesHeightSegments, edgesDepthSegments);
-      const edgesGeometry = new THREE.EdgesGeometry(
-        boxGeometry
-      );
-      const edges = new THREE.LineSegments(
-        edgesGeometry,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
-      );
-      edges.position.set(0, 0, 0);
-      scene.add(edges);
-
       video = document.createElement("video");
-      video.src = "video-short.mp4";
+      video.src = "razi.mp4";
       video.load();
       video.muted = true;
       video.loop = true;
@@ -169,52 +199,35 @@
         videoTexture.generateMipmaps = false;
         videoTexture.format = THREE.RGBAFormat;
 
-        // Processed Video
-        var colorSpaceMaterial = new THREE.ShaderMaterial({
-          vertexShader: document.getElementById('RGBVertexShader').textContent,
-          fragmentShader: document.getElementById('RGBFragmentShader').textContent,
-          glslVersion: THREE.GLSL3,
-          uniforms: {
-            tex: { value: videoTexture },
-          }
-        });
-
-        // Shadow Space Material
-        var shadowSpaceMaterial = new THREE.ShaderMaterial({
-          vertexShader: document.getElementById('ShadowVertexShader').textContent,
-          fragmentShader: document.getElementById('ShadowFragmentShader').textContent,
-          glslVersion: THREE.GLSL3,
-          uniforms: {
-            tex: { value: videoTexture },
-          }
-        });
-
         let discret = 10;
-        const geometry = new THREE.BufferGeometry();
         const positions = [];
-        let compteur = 0;
         for (let i = 0; i < video.videoHeight; i += discret)
           for (let j = 0; j < video.videoWidth; j += discret) {
-
             // positions
             const x = (i + 0.5) / video.videoHeight;
             const y = (j + 0.5) / video.videoWidth;
             const z = 0;
-
             positions.push(x, y, z);
-            compteur++;
           }
 
+        // Color Space Material
+        const colorSpaceMaterial = new SpaceMaterial('RGBVertexShader', 'RGBFragmentShader').material;
+        const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.computeBoundingSphere();
-        const points = new THREE.Points(geometry, colorSpaceMaterial);
-        points.position.z = 0;
-        scene.add(points);
+        const colorPoints = new THREE.Points(geometry, colorSpaceMaterial);
 
-        // Shadow Space Points
+        // Shadow Space Material
+        const shadowSpaceMaterial = new SpaceMaterial('ShadowVertexShader', 'ShadowFragmentShader').material;
         const shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
-        shadowSpacePoints.position.set(-0.5, -0.5, -0.5);
-        scene.add(shadowSpacePoints);
+        setPointsPosition(colorPoints, shadowSpacePoints, 1, 1, 0);
+
+        // Density Color Space Material
+        const densityColorSpaceMaterial = colorSpaceMaterial.clone();
+        densityColorSpaceMaterial.blending = THREE.AdditiveBlending;
+        densityColorSpaceMaterial.transparent = true;
+        const densityColorPoints = new THREE.Points(geometry, densityColorSpaceMaterial);
+        setPointsPosition(densityColorPoints, shadowSpacePoints.clone(), -1, 1, 0);
 
         // Original Video
         var geometry2 = new THREE.PlaneGeometry(
