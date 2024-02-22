@@ -94,7 +94,8 @@
 
     var camera, controls, scene, renderer, container;
     var context, canvas;
-    var plan;
+    var plan, cube;
+    const x = 0; const y = 1.6; const z = 0;
     var colorSpacePoints, shadowSpacePoints, densityColorPoints;
 
     let grabbing = false;
@@ -133,42 +134,42 @@
     function createBoxHelper(x, y, z) {
       // EdgesGeometry
       const size = 1;
-      const edgesWidthSegments = 2;
-      const edgesHeightSegments = 2;
-      const edgesDepthSegments = 2;
+      const cubeWidthSegments = 2;
+      const cubeHeightSegments = 2;
+      const cubeDepthSegments = 2;
       const boxGeometry = new THREE.BoxGeometry(
         size, size, size,
-        edgesWidthSegments, edgesHeightSegments, edgesDepthSegments);
-      const edgesGeometry = new THREE.EdgesGeometry(
+        cubeWidthSegments, cubeHeightSegments, cubeDepthSegments);
+      const cubeGeometry = new THREE.EdgesGeometry(
         boxGeometry
       );
-      const edges = new THREE.LineSegments(
-        edgesGeometry,
+      cube = new THREE.LineSegments(
+        cubeGeometry,
         new THREE.LineBasicMaterial({ color: 0xffffff })
       );
-      edges.position.set(x, y, z);
+      cube.position.set(x, y, z);
 
       // Grid Helper
       const gridHelper = new THREE.GridHelper(1, 10);
-      gridHelper.position.set(x, y - 0.5, z);
+      gridHelper.position.set(x, y - 2.1, z);
 
       // Add to scene
-      scene.add(gridHelper, edges);
+      cube.add(gridHelper);
+      scene.add(cube)
     }
 
     function setPointsPosition(colorPoints, shadowPoints, x, y, z) {
-      colorPoints.position.set(x, y, z);
-      shadowPoints.position.set(x - .5, y - .5, z - .5);
-      scene.add(colorPoints, shadowPoints);
-      createBoxHelper(x, y, z);
+      colorPoints.position.set(x, y - 1.6, z);
+      shadowPoints.position.set(x - .5, y - 2.1, z - .5);
+      cube.add(colorPoints, shadowPoints);
     }
 
     function setVisible(visible, meshList, colorPoints, shadowPoints) {
       meshList.forEach((mesh) => {
-        scene.remove(mesh);
+        cube.remove(mesh);
       })
       if (visible) {
-        scene.add(colorPoints, shadowPoints);
+        cube.add(colorPoints, shadowPoints);
       }
     }
 
@@ -176,16 +177,6 @@
       const colorSpaceObj = {
         colorSpace: 'RGB',
         density: false,
-      }
-
-      function selectSpacePoints(colorSpace, show) {
-        const spacePoints = {
-          'RGB': show ? densityColorPoints : colorSpacePoints,
-          'CIExyY': show ? densityColorPoints : colorSpacePoints,
-          'CIELAB': show ? densityColorPoints : colorSpacePoints,
-        }
-
-        return spacePoints[colorSpace];
       }
 
       var pausePlayObj = {
@@ -201,6 +192,16 @@
           console.log(video.currentTime);
         },
       };
+
+      function selectSpacePoints(colorSpace, show) {
+        const spacePoints = {
+          'RGB': show ? densityColorPoints : colorSpacePoints,
+          'CIExyY': show ? densityColorPoints : colorSpacePoints,
+          'CIELAB': show ? densityColorPoints : colorSpacePoints,
+        }
+
+        return spacePoints[colorSpace];
+      }
 
       gui.add(colorSpaceObj, 'colorSpace', ['RGB', 'CIExyY', 'CIELAB']).name('Color Space').onChange((value) => {
         setVisible(false, meshList);
@@ -269,7 +270,6 @@
         scene.attach(object);
         controller.userData.selected = undefined;
         grabbing = false;
-
       }
       scaling.active = false;
     }
@@ -312,16 +312,16 @@
         0.1,
         10
       );
-      camera.position.set(0, 1.6, 3);
+      camera.position.set(x, y, 5);
 
       // Controller
       controls = new OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 1.6, 0);
+      controls.target.set(x, y, z);
       controls.update();
 
       // AXES HELPER
       var axesHelper = new THREE.AxesHelper();
-      axesHelper.position.set(0, 1.6, 0);
+      axesHelper.position.set(x, y, z);
       // scene.add(axesHelper);
 
       video = document.createElement("video");
@@ -358,15 +358,15 @@
         // Shadow Space Material
         const shadowSpaceMaterial = new SpaceMaterial('ShadowVertexShader', 'ShadowFragmentShader').material;
         shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
-        // setPointsPosition(colorSpacePoints, shadowSpacePoints, 1, 1, 0);
-        setPointsPosition(colorSpacePoints, shadowSpacePoints, 0, 1.6, 0);
+
+        createBoxHelper(x, y, z);
+        setPointsPosition(colorSpacePoints, shadowSpacePoints, x, y, z);
 
         // Density Color Space Material
         const densityColorSpaceMaterial = colorSpaceMaterial.clone();
         densityColorSpaceMaterial.blending = THREE.AdditiveBlending;
         densityColorSpaceMaterial.transparent = true;
         densityColorPoints = new THREE.Points(geometry, densityColorSpaceMaterial);
-        // setPointsPosition(densityColorPoints, shadowSpacePoints.clone(), -1, 1, 0);
 
         // Create GUI
         const meshList = [colorSpacePoints, shadowSpacePoints, densityColorPoints];
