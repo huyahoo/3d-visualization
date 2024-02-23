@@ -91,6 +91,9 @@
     let handPointer1, handPointer2;
     let controllerGrip1, controllerGrip2;
 
+    const tmpVector1 = new THREE.Vector3();
+    const tmpVector2 = new THREE.Vector3();
+
     var camera, controls, scene, renderer, container;
     var context, canvas;
     var plan, cube;
@@ -282,8 +285,6 @@
           let distance = null;
           objects.forEach(object => {
             const intersections = hp.intersectObject(object, false);
-            console.log(intersections);
-
             if (intersections && intersections.length > 0) {
               distance = intersections[0].distance;
               selectingObj = object;
@@ -291,24 +292,33 @@
           });
 
           if (distance) {
-            hp.setCursor(distance ? distance: 1.5);
+            hp.setCursor(distance);
             if (hp.isPinched() && !hp.isAttached()) {
-              hp.setAttached(true)
+              hp.setAttached(true);
             } else if (!hp.isPinched() && hp.isAttached()){
-              hp.setAttached(false)
+              hp.setAttached(false);
+              selectingObj = null;
             }
           } 
           else {
-            hp.setCursor(distance ? distance: 1.5);
+            hp.setCursor(1.5);
           }
         }
       });
     }
 
     function collideObject(indexTip) {
-      const objects = [plan, cube]
-      setRightPointerCursor(objects)
-      return selectingObj;
+      const objects = [plan, cube];
+      for (let i = 0; i < objects.length; i++) {
+        const object = objects[i];
+        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
+        if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
+          return object;
+        } else {
+          return selectingObj;
+        }
+      }
+      return null;
     }
 
     init();
@@ -369,7 +379,7 @@
         videoTexture.generateMipmaps = false;
         videoTexture.format = THREE.RGBAFormat;
 
-        const discret = 10;
+        const discret = 1;
         const positions = [];
         for (let i = 0; i < video.videoHeight; i += discret)
           for (let j = 0; j < video.videoWidth; j += discret) {
@@ -478,6 +488,7 @@
         const newScale = scaling.initialScale + distance / scaling.initialDistance - 1;
         scaling.object.scale.setScalar(newScale);
       }
+      setRightPointerCursor([plan, cube]);
       renderer.render(scene, camera);
     }
 
