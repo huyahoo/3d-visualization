@@ -81,21 +81,20 @@
     import { GUI } from 'https://cdn.jsdelivr.net/npm/lil-gui@0.19/+esm';
 
     // VR & XR Associated
-    import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import { XRButton } from 'three/addons/webxr/XRButton.js';
     import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
-    import { OculusHandModel } from 'three/addons/webxr/OculusHandModel.js';
-    import { OculusHandPointerModel } from 'three/addons/webxr/OculusHandPointerModel.js';
+    import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
 
     let hand1, hand2;
     let controller1, controller2;
-    let handPointer1, handPointer2;
     let controllerGrip1, controllerGrip2;
+
+    const tmpVector1 = new THREE.Vector3();
+    const tmpVector2 = new THREE.Vector3();
 
     var camera, controls, scene, renderer, container;
     var context, canvas;
     var plan, cube;
-    var selectingObj;
-    
     const x = 0; const y = 1.6; const z = 0;
     var colorSpacePoints, shadowSpacePoints, densityColorPoints;
 
@@ -275,40 +274,18 @@
       scaling.active = false;
     }
 
-    function setRightPointerCursor(objects) {
-      const handPointers = [handPointer1, handPointer2];
-      handPointers.forEach(hp => {
-        if (hp) {
-          let distance = null;
-          objects.forEach(object => {
-            const intersections = hp.intersectObject(object, false);
-            console.log(intersections);
-
-            if (intersections && intersections.length > 0) {
-              distance = intersections[0].distance;
-              selectingObj = object;
-            }
-          });
-
-          if (distance) {
-            hp.setCursor(distance ? distance: 1.5);
-            if (hp.isPinched() && !hp.isAttached()) {
-              hp.setAttached(true)
-            } else if (!hp.isPinched() && hp.isAttached()){
-              hp.setAttached(false)
-            }
-          } 
-          else {
-            hp.setCursor(distance ? distance: 1.5);
-          }
-        }
-      });
-    }
-
     function collideObject(indexTip) {
-      const objects = [plan, cube]
-      setRightPointerCursor(objects)
-      return selectingObj;
+      const objects = [plan, cube];
+      for (let i = 0; i < objects.length; i++) {
+        const object = objects[i];
+
+        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
+
+        if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
+          return object;
+        }
+      }
+      return null;
     }
 
     init();
@@ -335,7 +312,7 @@
       renderer.shadowMap.enabled = true;
       renderer.xr.enabled = true;
 
-      document.body.appendChild(VRButton.createButton(renderer));
+      document.body.appendChild(XRButton.createButton(renderer));
       container.appendChild(renderer.domElement);
 
       camera = new THREE.PerspectiveCamera(
@@ -426,6 +403,7 @@
         scene.add(controller2);
 
         const controllerModelFactory = new XRControllerModelFactory();
+        const handModelFactory = new XRHandModelFactory();
 
         // Hand 1
         controllerGrip1 = renderer.xr.getControllerGrip(0);
@@ -433,14 +411,11 @@
         scene.add(controllerGrip1);
 
         hand1 = renderer.xr.getHand(0);
-        hand1.add(new OculusHandModel(hand1));
-        handPointer1 = new OculusHandPointerModel(hand1, controller1);
-        hand1.add(handPointer1);
-        scene.add(hand1);
         hand1.addEventListener('pinchstart', onPinchStartLeft);
         hand1.addEventListener('pinchend', () => {
           scaling.active = false;
         });
+        hand1.add(handModelFactory.createHandModel(hand1));
         scene.add(hand1);
 
         // Hand 2
@@ -449,14 +424,19 @@
         scene.add(controllerGrip2);
 
         hand2 = renderer.xr.getHand(1);
-        hand2.add(new OculusHandModel(hand2));
-        handPointer2 = new OculusHandPointerModel(hand2, controller2);
-        hand2.add(handPointer2);
-        scene.add(hand2);
-
         hand2.addEventListener('pinchstart', onPinchStartRight);
         hand2.addEventListener('pinchend', onPinchEndRight);
+        hand2.add(handModelFactory.createHandModel(hand2));
         scene.add(hand2);
+
+        const handInputHelperGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, - 1)]);
+
+        const line = new THREE.Line(handInputHelperGeometry);
+        line.name = 'line';
+        line.scale.z = 5;
+
+        controller1.add(line.clone());
+        controller2.add(line.clone());
 
         scene.add(plan);
         video.play();
