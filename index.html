@@ -2,502 +2,186 @@
 <html lang="en">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
-  <title>Color Points Cloud Visualization</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time 3D Visualization</title>
   <style>
     body {
+      font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 1));
+      color: #fff;
+      height: 100%;
+    }
+
+    header {
+      color: #fff;
+      padding: 10px 20px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    section {
+      padding: 20px;
+    }
+
+    h2 {
+      margin-bottom: 0px;
+    }
+
+    .block {
+      width: 200px;
+      height: 200px;
+      border: None;
+      margin: 30px;
+      display: inline-block;
+      cursor: pointer;
+      position: relative;
+    }
+    .block video {
       width: 100%;
       height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background-color: #aaaaaa;
-      background-attachment: fixed !important;
-      font-family: Monospace;
+    }
+    .block-title {
+      text-align: center;
+      padding: 3px 5px;
+      font-size: 12px;
     }
   </style>
 </head>
 
 <body>
-  <div id="container"></div>
-  <script type="x-shader/x-vertex" id="RGBVertexShader">
-		uniform sampler2D tex;
-		varying vec3 color;
-
-		void main() {
-			color = texture2D ( tex, position.xy ).rgb;
-			gl_PointSize = 1.0;
-			gl_Position = projectionMatrix * modelViewMatrix * vec4(color-vec3(.5,.5,.5), 1.0);
-		}
-	</script>
-
-  <script type="x-shader/x-fragment" id="RGBFragmentShader">
-		varying vec3 color;
-    out vec4 out_FragColor;
-
-		void main() {
-			out_FragColor.rgb = color;
-			out_FragColor.a = 1.0;
-		}
-	</script>
-
-  <script type="x-shader/x-vertex" id="ShadowVertexShader">
-    uniform sampler2D tex;
-    varying vec3 color;
-
-    void main() {
-      color = texture2D(tex, position.xy).rgb;
-      gl_PointSize = 1.0;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(color.x, 0.0, color.z, 1.0);
-    }
-  </script>
-
-  <script type="x-shader/x-fragment" id="ShadowFragmentShader">
-    varying vec3 color;
-    out vec4 out_FragColor;
-
-    void main() {
-      out_FragColor.rgb = vec3(0.0, 0.0, 0.0); // Color the fragment uniformly
-      out_FragColor.a = 1.0; //opacity
-    }
-  </script>
-
-  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
-      }
-    }
-  </script>
-
-  <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import WEBGL from "three/addons/capabilities/WebGL.js";
-    import { GUI } from 'https://cdn.jsdelivr.net/npm/lil-gui@0.19/+esm';
-
-    // VR & XR Associated
-    import { VRButton } from 'three/addons/webxr/VRButton.js';
-    import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
-    import { OculusHandModel } from 'three/addons/webxr/OculusHandModel.js';
-    import { OculusHandPointerModel } from 'three/addons/webxr/OculusHandPointerModel.js';
-
-    let hand1, hand2;
-    let controller1, controller2;
-    let handPointer1, handPointer2;
-    let controllerGrip1, controllerGrip2;
-
-    const tmpVector1 = new THREE.Vector3();
-    const tmpVector2 = new THREE.Vector3();
-
-    var camera, controls, scene, renderer, container;
-    var context, canvas;
-    var plan, cube;
-    var selectingObj;
-    
-    const x = 0; const y = 1.6; const z = 0;
-    var colorSpacePoints, shadowSpacePoints, densityColorPoints;
-
-    let grabbing = false;
-    const scaling = {
-      active: false,
-      initialDistance: 0,
-      object: null,
-      initialScale: 1
-    };
-
-    // Visualization Associated
-    const gui = new GUI();
-
-    // VIDEO AND THE ASSOCIATED TEXTURE
-    var video, videoTexture;
-
-    class SpaceMaterial {
-      constructor(vertexShaderId, fragmentShaderId) {
-        this.vertexShaderId = vertexShaderId;
-        this.fragmentShaderId = fragmentShaderId;
-        this.material = this.createMaterial();
-      }
-
-      createMaterial() {
-        return new THREE.ShaderMaterial({
-          vertexShader: document.getElementById(this.vertexShaderId).textContent,
-          fragmentShader: document.getElementById(this.fragmentShaderId).textContent,
-          glslVersion: THREE.GLSL3,
-          uniforms: {
-            tex: { value: videoTexture },
-          },
-        });
-      }
-    }
-
-    function createBoxHelper(x, y, z) {
-      // EdgesGeometry
-      const size = 1;
-      const cubeWidthSegments = 2;
-      const cubeHeightSegments = 2;
-      const cubeDepthSegments = 2;
-      const boxGeometry = new THREE.BoxGeometry(
-        size, size, size,
-        cubeWidthSegments, cubeHeightSegments, cubeDepthSegments);
-      const cubeGeometry = new THREE.EdgesGeometry(
-        boxGeometry
-      );
-      cube = new THREE.LineSegments(
-        cubeGeometry,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
-      );
-      cube.position.set(x, y, z);
-
-      // Grid Helper
-      const gridHelper = new THREE.GridHelper(1, 10);
-      gridHelper.position.set(x, y - 2.1, z);
-
-      // Add to scene
-      cube.add(gridHelper);
-      scene.add(cube)
-    }
-
-    function setPointsPosition(colorPoints, shadowPoints, x, y, z) {
-      colorPoints.position.set(x, y - 1.6, z);
-      shadowPoints.position.set(x - .5, y - 2.1, z - .5);
-      cube.add(colorPoints, shadowPoints);
-    }
-
-    function setVisible(visible, meshList, colorPoints, shadowPoints) {
-      meshList.forEach((mesh) => {
-        cube.remove(mesh);
-      })
-      if (visible) {
-        cube.add(colorPoints, shadowPoints);
-      }
-    }
-
-    function createGUI(meshList) {
-      const colorSpaceObj = {
-        colorSpace: 'RGB',
-        density: false,
-      }
-
-      var pausePlayObj = {
-        pausePlay: function () {
-          if (!video.paused) {
-            video.pause();
-          } else {
-            video.play();
-          }
-        },
-        add10sec: function () {
-          video.currentTime = video.currentTime + 10;
-          console.log(video.currentTime);
-        },
-      };
-
-      function selectSpacePoints(colorSpace, show) {
-        const spacePoints = {
-          'RGB': show ? densityColorPoints : colorSpacePoints,
-          'CIExyY': show ? densityColorPoints : colorSpacePoints,
-          'CIELAB': show ? densityColorPoints : colorSpacePoints,
-        }
-
-        return spacePoints[colorSpace];
-      }
-
-      gui.add(colorSpaceObj, 'colorSpace', ['RGB', 'CIExyY', 'CIELAB']).name('Color Space').onChange((value) => {
-        setVisible(false, meshList);
-        colorSpaceObj.colorSpace = value;
-        switch (value) {
-          case 'RGB':
-            setVisible(true, meshList, selectSpacePoints(value, colorSpaceObj.density), shadowSpacePoints);
-            break;
-          case 'CIExyY':
-            setVisible(true, meshList, selectSpacePoints(value, colorSpaceObj.density), shadowSpacePoints);
-            break;
-          case 'CIELAB':
-            setVisible(true, meshList, selectSpacePoints(value, colorSpaceObj.density), shadowSpacePoints);
-            break;
-          default:
-            break;
-        }
-      });
-
-      gui.add(colorSpaceObj, 'density').name('Visualize Density').onChange((value) => {
-        colorSpaceObj.density = value;
-        setVisible(true, meshList, selectSpacePoints(colorSpaceObj.colorSpace, value), shadowSpacePoints);
-      });
-
-      gui.add(pausePlayObj, "pausePlay").name("Pause/play video");
-      gui.add(pausePlayObj, "add10sec").name("Add 10 seconds");
-    }
-
-    // VR Associated Function
-    function onPinchStartLeft(event) {
-      const controller = event.target;
-      console.log('start')
-      if (grabbing) {
-        const indexTip = controller.joints['index-finger-tip'];
-        const object = collideObject(indexTip);
-        console.log("pinch Left", object)
-        if (object) {
-          const object2 = hand2.userData.selected;
-          if (object === object2) {
-            scaling.active = true;
-            scaling.object = object;
-            scaling.initialScale = object.scale.x;
-            scaling.initialDistance = indexTip.position.distanceTo(hand2.joints['index-finger-tip'].position);
-            return;
-          }
-        }
-      }
-    }
-
-    function onPinchStartRight(event) {
-      const controller = event.target;
-      const indexTip = controller.joints['index-finger-tip'];
-      const object = collideObject(indexTip);
-      if (object) {
-        grabbing = true;
-        indexTip.attach(object);
-        controller.userData.selected = object;
-        console.log('Selected', object);
-      }
-    }
-
-    function onPinchEndRight(event) {
-      const controller = event.target;
-      if (controller.userData.selected !== undefined) {
-        const object = controller.userData.selected;
-        scene.attach(object);
-        controller.userData.selected = undefined;
-        grabbing = false;
-      }
-      scaling.active = false;
-    }
-
-    function setRightPointerCursor(objects) {
-      const handPointers = [handPointer1, handPointer2];
-      handPointers.forEach(hp => {
-        if (hp) {
-          let distance = null;
-          objects.forEach(object => {
-            const intersections = hp.intersectObject(object, false);
-            if (intersections && intersections.length > 0) {
-              distance = intersections[0].distance;
-              selectingObj = object;
-            }
-          });
-
-          if (distance) {
-            hp.setCursor(distance);
-            if (hp.isPinched() && !hp.isAttached()) {
-              hp.setAttached(true);
-            } else if (!hp.isPinched() && hp.isAttached()){
-              hp.setAttached(false);
-              selectingObj = null;
-            }
-          } 
-          else {
-            hp.setCursor(1.5);
-          }
-        }
-      });
-    }
-
-    function collideObject(indexTip) {
-      const objects = [plan, cube];
-      for (let i = 0; i < objects.length; i++) {
-        const object = objects[i];
-        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
-        if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
-          return object;
-        } else {
-          return selectingObj;
-        }
-      }
-      return null;
-    }
-
-    init();
-    animate();
-
-    function init() {
-      if (WEBGL.isWebGL2Available() === false) {
-        document.body.appendChild(WEBGL.getWebGL2ErrorMessage());
-      }
-      container = document.getElementById('container');
-      canvas = document.createElement("canvas");
-      context = canvas.getContext("webgl2");
-      document.body.appendChild(canvas);
-
-      scene = new THREE.Scene();
-
-      renderer = new THREE.WebGLRenderer({
-        canvas: canvas,
-        context: context,
-      }); //, antialias: true, alpha: true } );
-      renderer.autoClear = false;
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.shadowMap.enabled = true;
-      renderer.xr.enabled = true;
-
-      document.body.appendChild(VRButton.createButton(renderer));
-      container.appendChild(renderer.domElement);
-
-      camera = new THREE.PerspectiveCamera(
-        50,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        10
-      );
-      camera.position.set(x, y, 5);
-
-      // Controller
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.target.set(x, y, z);
-      controls.update();
-
-      // AXES HELPER
-      var axesHelper = new THREE.AxesHelper();
-      axesHelper.position.set(x, y, z);
-      // scene.add(axesHelper);
-
-      video = document.createElement("video");
-      video.src = "visualizeColorFromVideoInVR/video_html_data/razi.mp4";
-      video.load();
-      video.muted = true;
-      video.loop = true;
-
-      video.onloadeddata = function () {
-        videoTexture = new THREE.VideoTexture(video);
-        videoTexture.minFilter = THREE.NearestFilter;
-        videoTexture.magFilter = THREE.NearestFilter;
-        videoTexture.generateMipmaps = false;
-        videoTexture.format = THREE.RGBAFormat;
-
-        const discret = 10;
-        const positions = [];
-        for (let i = 0; i < video.videoHeight; i += discret)
-          for (let j = 0; j < video.videoWidth; j += discret) {
-            // positions
-            const x = (i + 0.5) / video.videoHeight;
-            const y = (j + 0.5) / video.videoWidth;
-            const z = 0;
-            positions.push(x, y, z);
-          }
-
-        // Color Space Material
-        const colorSpaceMaterial = new SpaceMaterial('RGBVertexShader', 'RGBFragmentShader').material;
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        geometry.computeBoundingSphere();
-        colorSpacePoints = new THREE.Points(geometry, colorSpaceMaterial);
-
-        // Shadow Space Material
-        const shadowSpaceMaterial = new SpaceMaterial('ShadowVertexShader', 'ShadowFragmentShader').material;
-        shadowSpacePoints = new THREE.Points(geometry, shadowSpaceMaterial);
-
-        createBoxHelper(x, y, z);
-        setPointsPosition(colorSpacePoints, shadowSpacePoints, x, y, z);
-
-        // Density Color Space Material
-        const densityColorSpaceMaterial = colorSpaceMaterial.clone();
-        densityColorSpaceMaterial.blending = THREE.AdditiveBlending;
-        densityColorSpaceMaterial.transparent = true;
-        densityColorPoints = new THREE.Points(geometry, densityColorSpaceMaterial);
-
-        // Create GUI
-        const meshList = [colorSpacePoints, shadowSpacePoints, densityColorPoints];
-        createGUI(meshList);
-
-        // Original Video
-        var geometry2 = new THREE.PlaneGeometry(
-          1,
-          video.videoHeight / video.videoWidth
-        );
-        var material2 = new THREE.MeshBasicMaterial({
-          map: videoTexture,
-          side: THREE.DoubleSide,
-        });
-        plan = new THREE.Mesh(geometry2, material2);
-        plan.position.set(0, 1.6, -1);
-        plan.receiveShadow = false;
-        plan.castShadow = false;
-
-        // VR Controller
-        controller1 = renderer.xr.getController(0);
-        scene.add(controller1);
-
-        controller2 = renderer.xr.getController(1);
-        scene.add(controller2);
-
-        const controllerModelFactory = new XRControllerModelFactory();
-
-        // Hand 1
-        controllerGrip1 = renderer.xr.getControllerGrip(0);
-        controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
-        scene.add(controllerGrip1);
-
-        hand1 = renderer.xr.getHand(0);
-        hand1.add(new OculusHandModel(hand1));
-        handPointer1 = new OculusHandPointerModel(hand1, controller1);
-        hand1.add(handPointer1);
-        scene.add(hand1);
-        hand1.addEventListener('pinchstart', onPinchStartLeft);
-        hand1.addEventListener('pinchend', () => {
-          scaling.active = false;
-        });
-        scene.add(hand1);
-
-        // Hand 2
-        controllerGrip2 = renderer.xr.getControllerGrip(1);
-        controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
-        scene.add(controllerGrip2);
-
-        hand2 = renderer.xr.getHand(1);
-        hand2.add(new OculusHandModel(hand2));
-        handPointer2 = new OculusHandPointerModel(hand2, controller2);
-        hand2.add(handPointer2);
-        scene.add(hand2);
-
-        hand2.addEventListener('pinchstart', onPinchStartRight);
-        hand2.addEventListener('pinchend', onPinchEndRight);
-        scene.add(hand2);
-
-        scene.add(plan);
-        video.play();
-      };
-
-      window.addEventListener("resize", onWindowResize, false);
-    }
-
-    // VR
-    function animate() {
-      renderer.setAnimationLoop(render);
-    }
-
-    function render() {
-      if (scaling.active) {
-        const indexTip1Pos = hand1.joints['index-finger-tip'].position;
-        const indexTip2Pos = hand2.joints['index-finger-tip'].position;
-        const distance = indexTip1Pos.distanceTo(indexTip2Pos);
-        const newScale = scaling.initialScale + distance / scaling.initialDistance - 1;
-        scaling.object.scale.setScalar(newScale);
-      }
-      setRightPointerCursor([plan, cube]);
-      renderer.render(scene, camera);
-    }
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      render();
-    }
+  <header style="text-align: center">
+    <h1>Real-time 3D Visualization</h1>
+    <p>Author: Phung Quang Huy</p>
+    <p>Last Modified: <span id="lastModified"></span></p>
+  </header>
+
+  <section id="sprint-workshop-2014">
+    <h2>Sprints - Workshop 2024</h2>
+    <div class="block" onclick="window.location.href='visualizeColorFromVideoInVR/colorCloudRGB.html'">
+      <video autoplay muted loop>
+        <source src="visualizeColorFromVideoInVR/video_html_data/visualizedColorCloud.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Visualize Color Point Cloud</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='visualizeColorFromVideoInVR/colorCloudVR.html'">
+      <video autoplay muted loop>
+        <source src="visualizeColorFromVideoInVR/video_html_data/clorCloudVR.mov" type="video/mp4">
+      </video>
+      <div class="block-title">VR / Drag & Scale</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='visualizeColorFromVideoInVR/colorCloudXR.html'">
+      <video autoplay muted loop>
+        <source src="visualizeColorFromVideoInVR/video_html_data/clorCloudVR.mov" type="video/mp4">
+      </video>
+      <div class="block-title">XR / Drag & Scale</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='visualizeColorFromVideoInVR/colorCloudVRPointer.html'">
+      <video autoplay muted loop>
+        <source src="visualizeColorFromVideoInVR/video_html_data/clorCloudVR.mov" type="video/mp4">
+      </video>
+      <div class="block-title">VR / Drag & Scale w/ Pointer</div>
+    </div>
+  </section>
+
+  <section id="practicalWork1">
+    <h2>Practical Work #1</h2>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex1.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_1.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.1</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex2.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_2.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.2</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex3.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_3.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.3</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex4.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_4.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.4</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_1/PW1_ex5.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_1/pw1_5.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.5</div>
+    </div>
+
+  </section>
+  <section id="practicalWork2">
+    <h2>Practical Work #2</h2>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex1.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_1.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.1</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex2.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_2.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.2</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex3.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_3.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.3</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex4.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_4.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.4</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex5.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_5.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.5</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex6.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_6.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.6</div>
+    </div>
+
+    <div class="block" onclick="window.location.href='Three.js/practical_work_2/PW2_ex7.html'">
+      <video autoplay muted loop>
+        <source src="Three.js/practical_work_2/pw2_7.mov" type="video/mp4">
+      </video>
+      <div class="block-title">Ex.7</div>
+    </div>
+  </section>
+
+  <script>
+    document.getElementById('lastModified').textContent = document.lastModified;
   </script>
 </body>
 
