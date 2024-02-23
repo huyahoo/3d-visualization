@@ -91,6 +91,9 @@
     let handPointer1, handPointer2;
     let controllerGrip1, controllerGrip2;
 
+    const tmpVector1 = new THREE.Vector3();
+    const tmpVector2 = new THREE.Vector3();
+
     var camera, controls, scene, renderer, container;
     var context, canvas;
     var plan, cube;
@@ -285,24 +288,20 @@
             if (intersections && intersections.length > 0) {
               distance = intersections[0].distance;
               selectingObj = object;
-              console.log(selectingObj);
             }
           });
 
           if (distance) {
-            hp.setCursor(distance ? distance: 1.5);
+            hp.setCursor(distance);
             if (hp.isPinched() && !hp.isAttached()) {
               hp.setAttached(true);
             } else if (!hp.isPinched() && hp.isAttached()){
               hp.setAttached(false);
               selectingObj = null;
-              console.log(selectingObj);
             }
           } 
           else {
-            // selectingObj = null;
-            console.log(selectingObj);
-            hp.setCursor(distance ? distance: 1.5);
+            hp.setCursor(1.5);
           }
         }
       });
@@ -310,9 +309,16 @@
 
     function collideObject(indexTip) {
       const objects = [plan, cube];
-      setRightPointerCursor(objects)
-      console.log(selectingObj)
-      return selectingObj;
+      for (let i = 0; i < objects.length; i++) {
+        const object = objects[i];
+        const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(object.getWorldPosition(tmpVector2));
+        if (distance < object.geometry.boundingSphere.radius * object.scale.x) {
+          return object;
+        } else {
+          return selectingObj;
+        }
+      }
+      return null;
     }
 
     init();
