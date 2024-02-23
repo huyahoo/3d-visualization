@@ -81,7 +81,7 @@
     import { GUI } from 'https://cdn.jsdelivr.net/npm/lil-gui@0.19/+esm';
 
     // VR & XR Associated
-    import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import { XRButton } from 'three/addons/webxr/XRButton.js';
     import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
     import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
 
@@ -312,7 +312,7 @@
       renderer.shadowMap.enabled = true;
       renderer.xr.enabled = true;
 
-      document.body.appendChild(VRButton.createButton(renderer));
+      document.body.appendChild(XRButton.createButton(renderer));
       container.appendChild(renderer.domElement);
 
       camera = new THREE.PerspectiveCamera(
@@ -346,7 +346,7 @@
         videoTexture.generateMipmaps = false;
         videoTexture.format = THREE.RGBAFormat;
 
-        let discret = 10;
+        const discret = 1;
         const positions = [];
         for (let i = 0; i < video.videoHeight; i += discret)
           for (let j = 0; j < video.videoWidth; j += discret) {
